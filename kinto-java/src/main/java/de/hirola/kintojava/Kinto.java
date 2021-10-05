@@ -15,6 +15,7 @@ public final class Kinto {
     private Kinto() {}
 
     /**
+     * Create a singleton instance for local data management and sync.
      *
      * @param configuration configuration for local storage and sync
      * @return singleton object for data management
