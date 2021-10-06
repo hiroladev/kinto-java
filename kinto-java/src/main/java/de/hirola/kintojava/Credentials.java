@@ -10,7 +10,7 @@ package de.hirola.kintojava;
  */
 public final class Credentials {
 
-    public enum Method { SIMPLE }
+    public enum Method {BASIC}
     private static Credentials instance;
     private String user;
     private String password;
@@ -19,18 +19,25 @@ public final class Credentials {
     private Credentials(String user, String password) {
         this.user = user;
         this.password = password;
-        authenticationMode = Method.SIMPLE;
+        authenticationMode = Method.BASIC;
     }
 
-    public static Credentials simpleAuth(String user, String password) {
+    /**
+     * Kinto Accounts expects a valid username and password as Basic Auth.
+     *
+     * @param user username for data access
+     * @param password password for data access
+     * @return Credentials to login on kinto remote
+     */
+    public static Credentials basicAuth(String user, String password) {
         if (instance == null) {
             instance = new Credentials(user, password);
         }
         return instance;
     }
 
-    public String getSimpleAuthString() {
-        return this.user.concat(":").concat(this.password);
+    public String getBasicAuthString() {
+        return this.user + (":") + this.password;
     }
 
 }

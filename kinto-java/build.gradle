@@ -41,4 +41,8 @@ tasks.named('jar') {
     }
 }
 
+java {
+    withSourcesJar()
+}
+
 version '0.1.0'
