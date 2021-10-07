@@ -5,10 +5,14 @@ package de.hirola.kintojava.util;
  */
 public class FeedbackEntry {
 
+    private long timeStamp;
+    private int severity;
+    private String feedback;
+
     /*
-        The collection ("tables") for feedbacks (remote logging).
+        The collection ("table") for feedbacks (remote logging).
      */
-    public static final String collection = "feedbacks";
+    public static final String COLLECTION = "feedbacks";
     /**
         The "struct" of  possible values for log severity.
      */
@@ -26,10 +30,6 @@ public class FeedbackEntry {
          */
         public static final int FEATURE_REQUEST = 2;
     }
-
-    private long timeStamp;
-    private int severity;
-    private String feedback;
 
     /**
      * Create a log entry with the actual timestamp.

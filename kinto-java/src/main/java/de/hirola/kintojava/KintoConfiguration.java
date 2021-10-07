@@ -28,6 +28,10 @@ public class KintoConfiguration {
         this.localdbPath = builder.localdbPath;
     }
 
+    /**
+     *
+     * @return the path to local database
+     */
     public String getLocaldbPath() {
         return this.localdbPath;
     }
@@ -48,6 +52,9 @@ public class KintoConfiguration {
         return this.bucket;
     }
 
+    /**
+     * Building dynamic kinto configurations.
+     */
     public static class Builder {
 
         private String bucket;
@@ -57,6 +64,8 @@ public class KintoConfiguration {
 
         public Builder(String bucket) {
             this.bucket = bucket;
+            // default server
+            this.kintoServer = "localhost";
             // default port
             this.kintoPort = 443;
             //  default path for local database

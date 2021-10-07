@@ -7,10 +7,15 @@ import java.util.Date;
  */
 public class LogEntry {
 
+    private long timeStamp;
+    private int severity;
+    private String message;
+
     /*
-        The collection ("tables") for logs (remote logging).
+        The collection ("table") for logs (remote logging).
      */
-    public static final String collection = "logs";
+    public static final String COLLECTION = "logs";
+
     /**
         The "struct" of  possible values for log severity.
      */
@@ -33,9 +38,14 @@ public class LogEntry {
         public static final int DEBUG = 3;
     }
 
-    private long timeStamp;
-    private int severity;
-    private String message;
+    //  validate the severity parameter
+    //  returns 0 if the parameter not valid
+    private int validate(int severity) {
+        return switch (severity) {
+            case 0, 1, 2, 3 -> severity;
+            default -> 0;
+        };
+    }
 
     /**
      * Create a log entry with the actual timestamp.
@@ -52,12 +62,15 @@ public class LogEntry {
 
     }
 
-    //  validate the severity parameter
-    //  returns 0 if the parameter not valid
-    private int validate(int severity) {
-        return switch (severity) {
-            case 0, 1, 2, 3 -> severity;
-            default -> 0;
-        };
+    public long getTimeStamp() {
+        return this.timeStamp;
+    }
+
+    public int getSeverity() {
+        return this.severity;
+    }
+
+    public String getMessage() {
+        return this.message;
     }
 }
