@@ -2,11 +2,9 @@ package de.hirola.kintojava.logger;
 
 import de.hirola.kintojava.Global;
 
+import java.io.File;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
@@ -14,7 +12,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Iterator;
 
 public class Logger {
 
@@ -32,6 +29,7 @@ public class Logger {
             this.localLoggingEnabled = false;
         } else {
             this.localLoggingEnabled = true;
+            logToFile(new LogEntry(LogEntry.Severity.INFO,"File-Logging started ..."));
         }
     }
 
@@ -85,6 +83,14 @@ public class Logger {
                                                     }
                                                 }
                                             }
+                                            // Closes this stream and releases any system resources associated with it.
+                                            try {
+                                                files.close();
+                                            } catch (IOException exception) {
+                                                if (Global.DEBUG) {
+                                                    exception.printStackTrace();
+                                                }
+                                            }
                                             if (fileCount >= maxFileCount) {
                                                 // delete the oldest log file
                                                 if (oldestLogFilePath != null) {
@@ -104,13 +110,14 @@ public class Logger {
                                             // we can create a new log file
                                             createLogFile = true;
                                         } catch (IOException exception) {
+                                            // if an operation failed, we write in old log file and try to rename later
                                             if (Global.DEBUG) {
                                                 exception.printStackTrace();
                                             }
                                         }
                                     }
                                 } catch (IOException exception) {
-                                    // all file system errors
+                                    // other file system errors -> no file logging available
                                     if (Global.DEBUG) {
                                         exception.printStackTrace();
                                         return false;
@@ -148,49 +155,17 @@ public class Logger {
             }
         } else {
             // create dir(s)
-            Iterator<Path> pathIterator = logDirPath.iterator();
-            while(pathIterator.hasNext()) {
-                Path pathElement = pathIterator.next();
-                //  if sub dir not exist -> create it
-                if (!Files.exists(pathElement)) {
-                    Path parent = pathElement.getParent();
-                    // is this a dir?
-                    if (Files.isDirectory(parent)) {
-                        // can we create a dir?
-                        if (Files.isWritable(parent)) {
-                            //  create sub dir
-                            try {
-                                Files.createDirectories(pathElement);
-                                if (Global.DEBUG) {
-                                    System.out.println("Directory " + pathElement + " created.");
-                                }
-                            } catch (IOException exception) {
-                                if (Global.DEBUG) {
-                                    System.out.println("Can't create the directory " + pathElement + " Disable logging to file.");
-                                    exception.printStackTrace();
-                                }
-                                return false;
-                            }
-                        } else {
-                            // not writeable
-                            if (Global.DEBUG) {
-                                System.out.println("Can't create the directory " + pathElement + " Disable logging to file.");
-                            }
-                            return false;
-                        }
-                    } else {
-                        // parent path element is a file
-                        if (Global.DEBUG) {
-                            System.out.println(pathElement.toString() + " is not a dir. Disable logging to file.");
-                        }
-                        return false;
-                    }
-
+            File logFileFolderStructure = new File(logDirPath.toString());
+            try {
+                if (logFileFolderStructure.mkdirs()) {
+                    createLogFile = true;
                 }
-
+            } catch (SecurityException exception) {
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+                return false;
             }
-
-
         }
         // create log file
         if (createLogFile) {
@@ -207,11 +182,9 @@ public class Logger {
     }
 
     private String buildLogEntryString(LogEntry entry) {
-        LocalDateTime logDate = Instant.ofEpochMilli(entry.getTimeStamp())
-                .atZone(ZoneId.systemDefault()).toLocalDateTime();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss.SSS");
-        formatter.format(logDate);
-        String entryString = "";
+        Instant logDate = Instant.ofEpochMilli(entry.getTimeStamp());
+        DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
+        String entryString = formatter.format(logDate);
         entryString+= switch (entry.getSeverity()) {
             case LogEntry.Severity.INFO -> entryString + " - " + "Info: ";
             case LogEntry.Severity.WARNING -> entryString + " - " + "Warning: ";
@@ -225,18 +198,22 @@ public class Logger {
 
     //  simple print to console
     private void out(LogEntry entry) {
-
-        System.out.println(this.buildLogEntryString(entry));
-
+        System.out.println(buildLogEntryString(entry));
     }
 
     //  logging to file
     private void logToFile(LogEntry entry) {
-
         if (this.localLoggingEnabled) {
-
+            try {
+                if (Files.isWritable(logFilePath)) {
+                    Files.writeString(this.logFilePath, buildLogEntryString(entry) + "\n", StandardOpenOption.APPEND);
+                }
+            } catch (IOException exception) {
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+            }
         }
-
     }
 
     public static Logger getInstance(LoggerConfiguration configuration) {

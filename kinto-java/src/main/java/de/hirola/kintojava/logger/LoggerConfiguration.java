@@ -97,7 +97,7 @@ public class LoggerConfiguration {
             this.kintoLogPort = 443;
             //  default path for local database
             String userHomeDir = System.getProperty("user.home");
-            this.localLogPath = userHomeDir + File.separator + ".kintojava" + File.separator + "logs";
+            this.localLogPath = userHomeDir + File.separator + ".kinto-java" + File.separator + "logs";
             // default log to console
             this.logggingDestination = LOGGING_DESTINATION.CONSOLE;
         }
