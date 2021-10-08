@@ -1,4 +1,4 @@
-package de.hirola.kintojava.util;
+package de.hirola.kintojava.logger;
 
 /**
  * An object of the class presents an entry in the log datastore.

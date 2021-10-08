@@ -1,4 +1,4 @@
-package de.hirola.kintojava.util;
+package de.hirola.kintojava.logger;
 
 import java.io.File;
 

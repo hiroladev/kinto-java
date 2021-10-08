@@ -1,6 +1,6 @@
-package de.hirola.kintojava.util;
+package de.hirola.kintojava.logger;
 
-import java.util.Date;
+import java.time.Instant;
 
 /**
  * An object of the class presents an entry in the log datastore.
@@ -56,7 +56,7 @@ public class LogEntry {
      */
     public LogEntry(int severity, String message) {
 
-        this.timeStamp = System.currentTimeMillis();
+        this.timeStamp = Instant.now().toEpochMilli();
         this.severity = this.validate(severity);
         this.message = message;
 

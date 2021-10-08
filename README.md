@@ -6,3 +6,4 @@ A java library to use with [kinto](https://github.com/Kinto/kinto).
 - Offline-First-Strategy / local storage with sqlite
 - simple the last (newest) update wins strategy
 - simple auth with user and password
+- Logging to file an in a kinto bucket
