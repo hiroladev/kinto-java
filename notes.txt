@@ -1,3 +1,12 @@
 bucket = database
 collection = table, class
 record = objects of class
+
+int, double, ... not Integer, Double,...
+variablenname <> classname:
+Person person -> ok
+int person -> not ok
+variablenname <> sql commands
+Objects from type KintoObject
+
+Collection: Reflection - Columns speichern!
