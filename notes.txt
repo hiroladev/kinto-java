@@ -1,0 +1,3 @@
+bucket = database
+collection = table, class
+record = objects of class

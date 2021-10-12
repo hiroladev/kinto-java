@@ -8,18 +8,13 @@ package de.hirola.kintojava;
  * @since 0.1.0
  *
  */
-public abstract class KintoObject implements KintoModel{
+public abstract class KintoObject implements KintoModel {
 
     private String id = null;
-    private int lastModified;
+    private long lastModified;
 
     protected KintoObject() {
         this.lastModified = 0;
-    }
-
-    protected KintoObject(String id, int lastModified) {
-        this.id = id;
-        this.lastModified = lastModified;
     }
 
     /**
@@ -36,7 +31,6 @@ public abstract class KintoObject implements KintoModel{
      * @throws UnsupportedOperationException - has the object already an id
      */
     public void setId(String id) throws UnsupportedOperationException {
-
         if (this.id == null) {
             this.id = id;
         } else {

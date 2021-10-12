@@ -5,8 +5,6 @@ import java.io.File;
 public class LoggerConfiguration {
 
     private String bucket;
-    private String kintoLogServer;
-    private int kintoLogPort;
     private String localLogPath;
     private int logggingDestination;
 
@@ -33,30 +31,8 @@ public class LoggerConfiguration {
 
     public LoggerConfiguration(Builder builder) {
         this.bucket = builder.bucket;
-        this.kintoLogServer = builder.kintoLogServer;
-        this.kintoLogPort = builder.kintoLogPort;
         this.localLogPath = builder.localLogPath;
         this.logggingDestination = builder.logggingDestination;
-    }
-
-    /**
-     *
-     * @return the path to local log files
-     */
-    public String getLocalLogPath() {
-
-        return this.localLogPath;
-
-    }
-
-    /**
-     *
-     * @return the base url for the (kinto) logging service
-     */
-    public String getKintoLogURL() {
-
-        return "https://" + this.kintoLogServer + ":" + this.kintoLogPort + "/v1/";
-
     }
 
     /**
@@ -66,6 +42,16 @@ public class LoggerConfiguration {
     public String getBucket() {
 
         return this.bucket;
+
+    }
+
+    /**
+     *
+     * @return the path to local log files
+     */
+    public String getLocalLogPath() {
+
+        return this.localLogPath;
 
     }
 
@@ -84,32 +70,16 @@ public class LoggerConfiguration {
     public static class Builder {
 
         private String bucket;
-        private String kintoLogServer;
-        private int kintoLogPort;
         private String localLogPath;
         private int logggingDestination;
 
         public Builder(String bucket) {
             this.bucket = bucket;
-            // default server
-            this.kintoLogServer = "localhost";
-            // default port
-            this.kintoLogPort = 443;
             //  default path for local database
             String userHomeDir = System.getProperty("user.home");
             this.localLogPath = userHomeDir + File.separator + ".kinto-java" + File.separator + "logs";
             // default log to console
             this.logggingDestination = LOGGING_DESTINATION.CONSOLE;
-        }
-
-        public Builder kintoLogServer(String url) {
-            this.kintoLogServer = url;
-            return this;
-        }
-
-        public Builder kintoLogPort(int port) {
-            this.kintoLogPort = port;
-            return this;
         }
 
         public Builder localLogPath(String path) {

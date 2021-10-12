@@ -70,7 +70,7 @@ public class KintoConfiguration {
             this.kintoPort = 443;
             //  default path for local database
             String userHomeDir = System.getProperty("user.home");
-            this.localdbPath = userHomeDir + File.separator + ".kintojava" + File.separator + bucket + ".sqlite";
+            this.localdbPath = userHomeDir + File.separator + ".kinto-java" + File.separator + bucket + ".sqlite";
         }
 
         public Builder kintoServer(String url) {

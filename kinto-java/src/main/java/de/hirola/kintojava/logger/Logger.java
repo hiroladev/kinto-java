@@ -216,9 +216,16 @@ public class Logger {
         }
     }
 
-    public static Logger getInstance(LoggerConfiguration configuration) {
+    public static Logger init(LoggerConfiguration configuration) {
         if (instance == null) {
             instance = new Logger(configuration);
+        }
+        return instance;
+    }
+
+    public static Logger getInstance() throws InstantiationException {
+        if (instance == null) {
+            new InstantiationException("Logger not configured. Please initiate with a valid LoggerConfiguration!");
         }
         return instance;
     }
