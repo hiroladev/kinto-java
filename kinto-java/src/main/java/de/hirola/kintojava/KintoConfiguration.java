@@ -65,26 +65,26 @@ public class KintoConfiguration {
         public Builder(String bucket) {
             this.bucket = bucket;
             // default server
-            this.kintoServer = "localhost";
+            kintoServer = "localhost";
             // default port
-            this.kintoPort = 443;
+            kintoPort = 443;
             //  default path for local database
             String userHomeDir = System.getProperty("user.home");
-            this.localdbPath = userHomeDir + File.separator + ".kinto-java" + File.separator + bucket + ".sqlite";
+            localdbPath = userHomeDir + File.separator + ".kinto-java" + File.separator + bucket + ".sqlite";
         }
 
         public Builder kintoServer(String url) {
-            this.kintoServer = url;
+            kintoServer = url;
             return this;
         }
 
         public Builder kintoPort(int port) {
-            this.kintoPort = port;
+            kintoPort = port;
             return this;
         }
 
         public Builder localdbPath(String path) {
-            this.localdbPath = path;
+            localdbPath = path;
             return this;
         }
 

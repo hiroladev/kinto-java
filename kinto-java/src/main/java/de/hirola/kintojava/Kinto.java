@@ -1,5 +1,6 @@
 package de.hirola.kintojava;
 
+import de.hirola.kintojava.logger.KintoException;
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
 import org.apache.commons.math3.analysis.function.Log;
@@ -29,6 +30,28 @@ public final class Kinto {
     private boolean loggerIsAvailable;
     private boolean localdbConnected;
     private boolean syncEnabled;
+
+    private void addToCollections(Class<? extends KintoObject> type) throws InvalidAttributesException {
+        if (this.collections == null) {
+            // no collections in cache
+            if (Global.DEBUG) {
+                String message = "No collections in cache.";
+                logger.log(LogEntry.Severity.DEBUG, message);
+            }
+            Collection collection = new Collection(type, this);
+            collections = new HashMap<>();
+            collections.put(type, collection);
+        } else {
+            if (!collections.containsKey(type)) {
+                if (Global.DEBUG) {
+                    String message = "Collection of " + type.toString() + " is not in cache.";
+                    logger.log(LogEntry.Severity.DEBUG, message);
+                }
+                Collection collection = new Collection(type, this);
+                collections.put(type, collection);
+            }
+        }
+    }
 
     private void initLocalDB() throws SQLException {
         // create or open local sqlite db
@@ -60,7 +83,7 @@ public final class Kinto {
         }
         this.localdbConnected = false;
         this.syncEnabled = false;
-
+        // initialize the local datastore for the collection
         try {
             // create or open local db
             initLocalDB();
@@ -75,13 +98,6 @@ public final class Kinto {
             throw new InstantiationException(errorMessage);
         }
     }
-
-    private void createBucket() {}
-
-    /*
-        create a table for a class of objects, if not exits
-     */
-    private void createCollection() {}
 
     /**
      * Create a singleton instance for local data management and sync.
@@ -104,8 +120,24 @@ public final class Kinto {
 
     }
 
-    public String add(KintoObject object) {
+    /**
+     * Add a new object to the local datastore.
+     * If the object exists, it is updated with the new properties.
+     *
+     *
+     * @param object Object to be added to the local datastore.
+     * @return The unique id for the object.
+     */
+    public String add(KintoObject object) throws KintoException {
         // reflection 1:1 and 1:m
+        try {
+            //
+            addToCollections(object.getClass());
+        } catch (InvalidAttributesException exception) {
+            throw new KintoException(exception.getMessage());
+        }
+
+
         return "ID";
     }
 

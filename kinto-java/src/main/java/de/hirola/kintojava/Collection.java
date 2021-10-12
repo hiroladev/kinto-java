@@ -25,10 +25,9 @@ public class Collection {
     private Connection localdbConnection;
     private Class type;
     private boolean loggerIsAvailable;
-    private boolean tableCreated;
     private boolean isSynced;
 
-    private boolean collectionExistsLocal() throws InvalidAttributesException {
+    private boolean createCollectionLocal() throws InvalidAttributesException {
         String sql = "SELECT name FROM sqlite_master WHERE type='table' AND name='" + type.getSimpleName() + "';";
         try {
             Statement statement = localdbConnection.createStatement();
@@ -62,7 +61,7 @@ public class Collection {
             // SQLite is "typeless". This means that you can store any kind of data you want in any column of any table,
             // regardless of the declared datatype of that column.
             try {
-                // build sql statement for creating table
+                // building the sql statement for creating table
                 // use reflection to map attributes to columns
                 Field declaredFields[] = type.getDeclaredFields();
                 Iterator<Field> iterator = Arrays.stream(declaredFields).iterator();
@@ -82,7 +81,8 @@ public class Collection {
                     columns.add(columnName);
                 }
                 // build the sql statement
-                sql = "CREATE TABLE " + type.getSimpleName() +"(id PRIMARY KEY";
+                // id from sqlite, kintoid from kinto, usn = update sequence number
+                sql = "CREATE TABLE " + type.getSimpleName() +"(id PRIMARY KEY, kintoid, usn, ";
                 for (int i = 0; i < columns.size(); i++) {
                     String columnName = columns.get(i);
                     sql += "," + columnName;
@@ -137,7 +137,7 @@ public class Collection {
         this.isSynced = kinto.syncEnabled();
         // check if table for collection exists
         // local and remote
-       tableCreated = collectionExistsLocal();
+        createCollectionLocal();
     }
 
     /**
