@@ -3,7 +3,6 @@ package de.hirola.kintojava;
 import de.hirola.kintojava.logger.KintoException;
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
-import org.apache.commons.math3.analysis.function.Log;
 
 import javax.naming.directory.InvalidAttributesException;
 import java.sql.Connection;
@@ -21,56 +20,23 @@ import java.util.*;
 public final class Kinto {
 
     private static Kinto instance;
-    private KintoConfiguration configuration;
+    private KintoConfiguration kintoConfiguration;
     private Logger logger;
     private String bucket;
-    // key=class, value=collection object
-    private HashMap<Class<? extends KintoObject>,Collection> collections;
+    private ArrayList<KintoCollection> collections;
     private Connection localdbConnection;
     private boolean loggerIsAvailable;
     private boolean localdbConnected;
     private boolean syncEnabled;
 
-    private void addToCollections(Class<? extends KintoObject> type) throws InvalidAttributesException {
-        if (this.collections == null) {
-            // no collections in cache
-            if (Global.DEBUG) {
-                String message = "No collections in cache.";
-                logger.log(LogEntry.Severity.DEBUG, message);
-            }
-            Collection collection = new Collection(type, this);
-            collections = new HashMap<>();
-            collections.put(type, collection);
-        } else {
-            if (!collections.containsKey(type)) {
-                if (Global.DEBUG) {
-                    String message = "Collection of " + type.toString() + " is not in cache.";
-                    logger.log(LogEntry.Severity.DEBUG, message);
-                }
-                Collection collection = new Collection(type, this);
-                collections.put(type, collection);
-            }
+    private Kinto(KintoConfiguration kintoConfiguration) throws KintoException {
+        this.kintoConfiguration = kintoConfiguration;
+        // check managed objects
+        int size = kintoConfiguration.getObjectTypes().size();
+        if (size == 0) {
+            throw new KintoException("There are no managed object types in configuration.");
         }
-    }
 
-    private void initLocalDB() throws SQLException {
-        // create or open local sqlite db
-        // connect to an SQLite database (bucket) that does not exist, it automatically creates a new database
-        try {
-            Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException exception) {
-            new SQLException(exception.getMessage());
-        }
-        String url = "jdbc:sqlite:" + this.configuration.getLocaldbPath();
-        this.localdbConnection = DriverManager.getConnection(url);
-        this.localdbConnected = true;
-        if (Global.DEBUG) {
-            this.logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
-        }
-    }
-
-    private Kinto(KintoConfiguration configuration) throws InstantiationException {
-        this.configuration = configuration;
         // activate logging
         try {
             this.logger = Logger.getInstance();
@@ -81,12 +47,19 @@ public final class Kinto {
                 exception.printStackTrace();
             }
         }
-        this.localdbConnected = false;
-        this.syncEnabled = false;
+        collections = new ArrayList<KintoCollection>(size);
+        localdbConnected = false;
+        syncEnabled = false;
+
         // initialize the local datastore for the collection
         try {
             // create or open local db
             initLocalDB();
+            // create or check collections (schema)
+            Iterator<Class<? extends KintoObject>> iterator = kintoConfiguration.getObjectTypes().iterator();
+            while (iterator.hasNext()) {
+                initializeCollection(iterator.next());
+            }
         } catch (SQLException exception) {
             String errorMessage = "Error occurred while creating or accessing local database.";
             if (loggerIsAvailable) {
@@ -95,19 +68,46 @@ public final class Kinto {
             if (Global.DEBUG) {
                 exception.printStackTrace();
             }
-            throw new InstantiationException(errorMessage);
+            throw new KintoException(errorMessage);
         }
     }
 
+    // fill list of collections
+    private void initializeCollection(Class<? extends KintoObject> type) throws KintoException {
+        KintoCollection kintoCollection = new KintoCollection(type, this);
+        collections.add(kintoCollection);
+    }
+
+    // create / open local (sql) datastore
+    private void initLocalDB() throws SQLException {
+        // create or open local sqlite db
+        // connect to an SQLite database (bucket) that does not exist, it automatically creates a new database
+        try {
+            Class.forName("org.sqlite.JDBC");
+        } catch (ClassNotFoundException exception) {
+            new SQLException(exception.getMessage());
+        }
+        String url = "jdbc:sqlite:" + kintoConfiguration.getLocaldbPath();
+        this.localdbConnection = DriverManager.getConnection(url);
+        this.localdbConnected = true;
+        if (Global.DEBUG) {
+            this.logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+        }
+    }
+
+    // create / check relations (tables)
+    private void manageRelations() {
+
+    }
     /**
      * Create a singleton instance for local data management and sync.
      *
-     * @param configuration configuration for local storage and sync
+     * @param kintoConfiguration The configuration for local and remote kinto datastore.
      * @return singleton object for data management
      */
-    public static Kinto getInstance(KintoConfiguration configuration) throws InstantiationException {
+    public static Kinto getInstance(KintoConfiguration kintoConfiguration) throws KintoException {
         if (instance == null) {
-            instance = new Kinto(configuration);
+            instance = new Kinto(kintoConfiguration);
         }
         return instance;
     }
@@ -129,15 +129,8 @@ public final class Kinto {
      * @return The unique id for the object.
      */
     public String add(KintoObject object) throws KintoException {
-        // reflection 1:1 and 1:m
-        try {
-            //
-            addToCollections(object.getClass());
-        } catch (InvalidAttributesException exception) {
-            throw new KintoException(exception.getMessage());
-        }
-
-
+        // 1:m relations
+        //
         return "ID";
     }
 
@@ -150,33 +143,7 @@ public final class Kinto {
     }
 
     public List<KintoObject> findAll(Class<? extends KintoObject> type) {
-        try {
-            if (this.collections == null) {
-                // no collections in cache
-                if (Global.DEBUG) {
-                    String message = "No collections in cache.";
-                    logger.log(LogEntry.Severity.DEBUG, message);
-                }
-                Collection collection = new Collection(type, this);
-                collections = new HashMap<>();
-                collections.put(type, collection);
-            } else {
-                if (!collections.containsKey(type)) {
-                    if (Global.DEBUG) {
-                        String message = "Collection of " + type.toString() + " is not in cache.";
-                        logger.log(LogEntry.Severity.DEBUG, message);
-                    }
-                    Collection collection = new Collection(type, this);
-                    collections.put(type, collection);
-                }
-            }
-            return collections.get(type).findAll();
-        } catch (InvalidAttributesException exception) {
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-            return null;
-        }
+        return null;
     }
 
     // Publish all local data to the server, import remote changes

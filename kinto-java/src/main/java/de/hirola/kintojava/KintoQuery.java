@@ -20,10 +20,10 @@ public final class KintoQuery {
 
     /**
      *
-     * @return list of all objects in the collection or null if an error occurred
+     * @return list of all objects in the kintoCollection or null if an error occurred
      */
-    public static List<KintoObject> findAll(Collection collection) {
-        String sql = "SELECT * from " + collection.getName();
+    public static List<KintoObject> findAll(KintoCollection kintoCollection) {
+        String sql = "SELECT * from " + kintoCollection.getName();
         return null;
     }
 

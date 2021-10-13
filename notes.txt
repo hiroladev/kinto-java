@@ -1,5 +1,5 @@
 bucket = database
-collection = table, class
+kintoCollection = table, class
 record = objects of class
 
 int, double, ... not Integer, Double,...
