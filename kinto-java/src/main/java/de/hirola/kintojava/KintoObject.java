@@ -1,5 +1,7 @@
 package de.hirola.kintojava;
 
+import java.util.Objects;
+
 /**
  * A kind of KintoObject can manipulated by Kinto.
  * Objects can created, updated and deleted.
@@ -36,5 +38,18 @@ public abstract class KintoObject implements KintoModel {
         } else {
             throw new UnsupportedOperationException("Cant set id. This object has already an id.");
         }
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        KintoObject that = (KintoObject) o;
+        return lastModified == that.lastModified && id.equals(that.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id, lastModified);
     }
 }

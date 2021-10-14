@@ -1,10 +1,8 @@
 package de.hirola.kintojava;
 
-import de.hirola.kintojava.logger.KintoException;
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
 
-import javax.naming.directory.InvalidAttributesException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -47,28 +45,15 @@ public final class Kinto {
                 exception.printStackTrace();
             }
         }
-        collections = new ArrayList<KintoCollection>(size);
+        collections = new ArrayList<>(size);
         localdbConnected = false;
         syncEnabled = false;
 
         // initialize the local datastore for the collection
-        try {
-            // create or open local db
-            initLocalDB();
-            // create or check collections (schema)
-            Iterator<Class<? extends KintoObject>> iterator = kintoConfiguration.getObjectTypes().iterator();
-            while (iterator.hasNext()) {
-                initializeCollection(iterator.next());
-            }
-        } catch (SQLException exception) {
-            String errorMessage = "Error occurred while creating or accessing local database.";
-            if (loggerIsAvailable) {
-                this.logger.log(LogEntry.Severity.ERROR, errorMessage);
-            }
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-            throw new KintoException(errorMessage);
+        initLocalDB();
+        // create or check collections (schema)
+        for (Class<? extends KintoObject> aClass : kintoConfiguration.getObjectTypes()) {
+            initializeCollection(aClass);
         }
     }
 
@@ -79,19 +64,20 @@ public final class Kinto {
     }
 
     // create / open local (sql) datastore
-    private void initLocalDB() throws SQLException {
+    private void initLocalDB() throws KintoException {
         // create or open local sqlite db
         // connect to an SQLite database (bucket) that does not exist, it automatically creates a new database
         try {
             Class.forName("org.sqlite.JDBC");
-        } catch (ClassNotFoundException exception) {
-            new SQLException(exception.getMessage());
-        }
-        String url = "jdbc:sqlite:" + kintoConfiguration.getLocaldbPath();
-        this.localdbConnection = DriverManager.getConnection(url);
-        this.localdbConnected = true;
-        if (Global.DEBUG) {
-            this.logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+
+            String url = "jdbc:sqlite:" + kintoConfiguration.getLocaldbPath();
+            this.localdbConnection = DriverManager.getConnection(url);
+            this.localdbConnected = true;
+            if (Global.DEBUG) {
+                this.logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+            }
+        } catch (Exception exception) {
+            throw new KintoException(exception);
         }
     }
 
