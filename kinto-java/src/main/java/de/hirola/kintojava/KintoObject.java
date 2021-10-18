@@ -12,10 +12,11 @@ import java.util.Objects;
  */
 public abstract class KintoObject implements KintoModel {
 
-    private String id = null;
+    private String id;
     private long lastModified;
 
     protected KintoObject() {
+        this.id = null;
         this.lastModified = 0;
     }
 

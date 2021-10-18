@@ -185,7 +185,7 @@ public class KintoCollection {
                     throw new KintoException(exception.getMessage());
                 }
             }
-            } catch(SQLException exception) {
+        } catch(SQLException exception) {
             if (Global.DEBUG) {
                 exception.printStackTrace();
             }
@@ -213,6 +213,9 @@ public class KintoCollection {
         if (kintoObject == null) {
             throw new KintoException("Can't add an nullable object.");
         }
+        if (kintoObject.getId() == null) {
+            return true;
+        }
         // object from collection type?
         if (!kintoObject.getClass().equals(type)) {
             String errorMessage = "The object is not from type " + type.getSimpleName() + " .";
@@ -238,6 +241,32 @@ public class KintoCollection {
             throw new KintoException();
         }
         return true;
+    }
+
+    // build a map with attribute and value for the object
+    // HashMap<attribute,value>
+    private HashMap<String,String> f(KintoObject kintoObject) throws KintoException {
+        try {
+            // use reflection to get attribute and value
+            Field[] declaredFields = type.getDeclaredFields();
+            Iterator<Field> iterator = Arrays.stream(declaredFields).iterator();
+            ArrayList<String> columns = new ArrayList<>();
+            while (iterator.hasNext()) {
+                Field attribute = iterator.next();
+                String attributeName = attribute.getName();
+
+            }
+        } catch (Throwable exception) {
+            if (loggerIsAvailable) {
+                String message = "Reflection of " + type.getName() + " failed, can't create table for collection.";
+                logger.log(LogEntry.Severity.ERROR, message);
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(exception.getMessage());
+        }
+        return null;
     }
 
     /**
@@ -271,8 +300,10 @@ public class KintoCollection {
             // building sql insert command
             // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
             StringBuilder sql = new StringBuilder("INSERT INTO (");
+            // the name of the collection (table)
             sql.append(getName());
             // attributes = columns
+            // build a map with attribute and value
             sql.append(" VALUES(");
             // values
             sql.append(" VALUES(");
