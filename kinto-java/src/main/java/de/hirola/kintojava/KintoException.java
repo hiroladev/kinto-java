@@ -1,5 +1,12 @@
 package de.hirola.kintojava;
 
+/**
+ * Exception ...
+ *
+ * @author Michael Schmidt (Hirola)
+ * @since 0.1.0
+ *
+ */
 public class KintoException extends Exception {
 
     public KintoException() {

@@ -24,6 +24,8 @@ public class KintoCollection {
     private Logger logger;
     private final Connection localdbConnection;
     private final Class<? extends KintoObject> type;
+    // storable attributes
+    HashMap<String,DataSet> storableAttributes;
     // 1:m relations for embedded KintoObject (Class) in table (String)
     private final HashMap<Class<? extends KintoObject>, String> relationTables;
     private boolean loggerIsAvailable;
@@ -37,6 +39,8 @@ public class KintoCollection {
      * @throws KintoException if collection couldn't initialize.
      */
     public KintoCollection(Class<? extends KintoObject> type, Kinto kinto) throws KintoException {
+        // build the list of persistent attributes
+        storableAttributes = buildAttributesMap(type);
         // activate logging
         try {
             this.logger = Logger.getInstance();
@@ -55,6 +59,46 @@ public class KintoCollection {
         // check if table for collection exists
         // local and remote
         createCollectionLocal();
+    }
+
+    // build a map with attribute and value for the object
+    // HashMap<attribute name, data set>
+    private HashMap<String,DataSet> buildAttributesMap(Class<? extends KintoObject> type) throws KintoException {
+        HashMap<String, DataSet> attributes = new HashMap<>();
+        try {
+            // use reflection to get attribute and value
+            // fields with annotation @Persisted
+            Field[] declaredFields = type.getDeclaredFields();
+            Iterator<Field> iterator = Arrays.stream(declaredFields).iterator();
+            ArrayList<String> columns = new ArrayList<>();
+            while (iterator.hasNext()) {
+                Field attribute = iterator.next();
+                if (attribute.isAnnotationPresent(Persisted.class)) {
+                    DataSet dataSet = new DataSet(attribute);
+                    attributes.put(attribute.getName(), dataSet);
+                }
+            }
+            if (attributes.isEmpty()) {
+                String message = "Object has no attributes with annotations. Can't create table for collection.";
+                if (loggerIsAvailable) {
+                    logger.log(LogEntry.Severity.ERROR, message);
+                }
+                if (Global.DEBUG) {
+                    System.out.println(message);
+                }
+                throw new KintoException(message);
+            }
+        } catch (Throwable exception) {
+            if (loggerIsAvailable) {
+                String message = "Reflection of " + this.type.getName() + " failed, can't create table for collection.";
+                logger.log(LogEntry.Severity.ERROR, message);
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(exception.getMessage());
+        }
+        return attributes;
     }
 
     private void createCollectionLocal() throws KintoException {
@@ -82,8 +126,7 @@ public class KintoCollection {
                     String message = "KintoCollection of " + type.getSimpleName() + " does not exists in local datastore.";
                     logger.log(LogEntry.Severity.DEBUG, message);
                 }
-                // SQLite is "typeless". This means that you can store any kind of data you want in any column of any table,
-                // regardless of the declared datatype of that column.
+                // SQLite store any kind of data you want in any column of any table
                 try {
                     // building the sql statement for creating table
                     // use reflection to map attributes to columns
@@ -92,78 +135,92 @@ public class KintoCollection {
                     ArrayList<String> columns = new ArrayList<>();
                     while (iterator.hasNext()) {
                         Field attribute = iterator.next();
-                        String columnName = attribute.getName();
-                        //  1. "embedded" kinto objects (1:1 relations)
-                        Class<?> attributeSuperClass = attribute.getType().getSuperclass();
-                        if (attributeSuperClass != null) {
-                            if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
-                                // "foreign key" -> rename column to lower classname+id
-                                String attributeClassName = attribute.getType().getSimpleName().toLowerCase(Locale.ROOT);
-                                columnName = attributeClassName + "id";
-                            }
-                        }
-                        // 2. create table for "embedded" List of kinto objects (1:m relations)
-                        if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
-                            // build the sql statement for the collection relation table
-                            // <name of type>+idTO<name of type>+id
-                            String attributeDeclaringClassName = attribute.getDeclaringClass().getSimpleName();
-                            // get the class name of type in list (https://stackoverflow.com/questions/1942644/get-generic-type-of-java-util-list)
-                            String attributeClassName = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]).getSimpleName();
-                            // check if table exists
-                            sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
-                            sql.append(attributeDeclaringClassName);
-                            sql.append("TO");
-                            sql.append(attributeClassName);
-                            sql.append("';");
-                            resultSet = statement.executeQuery(sql.toString());
-                            // table exists?
-                            // A TYPE_FORWARD_ONLY ResultSet only supports next() for navigation,
-                            // and not methods like first(), last(), absolute(int), relative(int).
-                            // The JDBC specification explicitly defines those to throw a SQLException if called on a TYPE_FORWARD_ONLY.
-                            // TABLE EXISTS LOCAL
-                            if (!resultSet.next()) {
-                                if (Global.DEBUG && loggerIsAvailable) {
-                                    String message = "KintoCollection of " + type + " exists in local datastore.";
-                                    logger.log(LogEntry.Severity.DEBUG, message);
-                                }
-                                // create table
-                                sql = new StringBuilder("CREATE TABLE ");
-                                String relationTableName = attributeDeclaringClassName + "TO" + attributeClassName;
-                                sql.append(relationTableName);
-                                sql.append(" (");
-                                sql.append(attributeDeclaringClassName.toLowerCase(Locale.ROOT));
-                                sql.append("id, ");
-                                sql.append(attributeClassName.toLowerCase(Locale.ROOT));
-                                sql.append("id);");
-                                if (Global.DEBUG && loggerIsAvailable) {
-                                    String message = "Create one-to-many relation table for "
-                                            + attributeDeclaringClassName + " and " + attributeClassName
-                                            + " with sql command: " + sql + ".";
-                                    logger.log(LogEntry.Severity.DEBUG, message);
-                                }
-                                // create the table in local datastore
-                                statement.execute(sql.toString());
-                                // add relation information to Map
-                                relationTables.put((Class<? extends KintoObject>) attribute.getDeclaringClass(), relationTableName);
-                            } else {
-                                //  relation table exists
-                                if (Global.DEBUG && loggerIsAvailable) {
-                                    String message = "Relation table for " + attributeDeclaringClassName
-                                            + " and " + attributeClassName + " exists in local datastore.";
-                                    logger.log(LogEntry.Severity.DEBUG, message);
+                        if (attribute.isAnnotationPresent(Persisted.class)) {
+                            String columnName = attribute.getName();
+                            //  1. "embedded" kinto objects (1:1 relations)
+                            Class<?> attributeSuperClass = attribute.getType().getSuperclass();
+                            if (attributeSuperClass != null) {
+                                if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
+                                    // "foreign key" -> rename column to lower classname+id
+                                    String attributeClassName = attribute.getType().getSimpleName().toLowerCase(Locale.ROOT);
+                                    columnName = attributeClassName + "id";
                                 }
                             }
+                            // 2. create table for "embedded" List of kinto objects (1:m relations)
+                            if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
+                                // build the sql statement for the collection relation table
+                                // <name of type>+idTO<name of type>+id
+                                attributeSuperClass = attribute.getType().getSuperclass();
+                                if (attributeSuperClass != null) {
+                                    if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
+                                        String attributeDeclaringClassName = attribute.getDeclaringClass().getSimpleName();
+                                        // get the class name of type in list (https://stackoverflow.com/questions/1942644/get-generic-type-of-java-util-list)
+                                        String attributeClassName = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]).getSimpleName();
+                                        // check if table exists
+                                        sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
+                                        sql.append(attributeDeclaringClassName);
+                                        sql.append("TO");
+                                        sql.append(attributeClassName);
+                                        sql.append("';");
+                                        resultSet = statement.executeQuery(sql.toString());
+                                        // table exists?
+                                        // A TYPE_FORWARD_ONLY ResultSet only supports next() for navigation,
+                                        // and not methods like first(), last(), absolute(int), relative(int).
+                                        // The JDBC specification explicitly defines those to throw a SQLException if called on a TYPE_FORWARD_ONLY.
+                                        // TABLE EXISTS LOCAL
+                                        if (!resultSet.next()) {
+                                            if (Global.DEBUG && loggerIsAvailable) {
+                                                String message = "KintoCollection of " + type + " exists in local datastore.";
+                                                logger.log(LogEntry.Severity.DEBUG, message);
+                                            }
+                                            // create table
+                                            sql = new StringBuilder("CREATE TABLE ");
+                                            String relationTableName = attributeDeclaringClassName + "TO" + attributeClassName;
+                                            sql.append(relationTableName);
+                                            sql.append(" (");
+                                            sql.append(attributeDeclaringClassName.toLowerCase(Locale.ROOT));
+                                            sql.append("id TEXT, ");
+                                            sql.append(attributeClassName.toLowerCase(Locale.ROOT));
+                                            sql.append("id TEXT);");
+                                            if (Global.DEBUG && loggerIsAvailable) {
+                                                String message = "Create one-to-many relation table for "
+                                                        + attributeDeclaringClassName + " and " + attributeClassName
+                                                        + " with sql command: " + sql + ".";
+                                                logger.log(LogEntry.Severity.DEBUG, message);
+                                            }
+                                            // create the table in local datastore
+                                            statement.execute(sql.toString());
+                                            // add relation information to Map
+                                            relationTables.put((Class<? extends KintoObject>) attribute.getDeclaringClass(), relationTableName);
+                                        } else {
+                                            //  relation table exists
+                                            if (Global.DEBUG && loggerIsAvailable) {
+                                                String message = "Relation table for " + attributeDeclaringClassName
+                                                        + " and " + attributeClassName + " exists in local datastore.";
+                                                logger.log(LogEntry.Severity.DEBUG, message);
+                                            }
+                                        }
+                                        columns.add(columnName);
+                                    }
+                                }
+                            }
                         }
-                        columns.add(columnName);
                     }
                     // build the sql statement for the collection table
                     // id from sqlite, kintoid from kinto, usn = update sequence number
+                    // now add only persistent attributes (@Persisted)
                     sql = new StringBuilder("CREATE TABLE ");
                     sql.append(type.getSimpleName());
-                    sql.append("(id PRIMARY KEY,kintoid,usn");
+                    //  "meta" data
+                    sql.append("(id TEXT PRIMARY KEY,kintoid TEXT,usn INT");
+                    // object attributes
                     for (String columnName : columns) {
                         sql.append(",");
                         sql.append(columnName);
+                        //  column data type
+                        if (storableAttributes.containsKey(columnName)) {
+                            sql.append(storableAttributes.get(columnName).getSqlDataTypeString());
+                        }
                     }
                     sql.append(");");
                     if (Global.DEBUG && loggerIsAvailable) {
@@ -241,32 +298,6 @@ public class KintoCollection {
             throw new KintoException();
         }
         return true;
-    }
-
-    // build a map with attribute and value for the object
-    // HashMap<attribute,value>
-    private HashMap<String,String> f(KintoObject kintoObject) throws KintoException {
-        try {
-            // use reflection to get attribute and value
-            Field[] declaredFields = type.getDeclaredFields();
-            Iterator<Field> iterator = Arrays.stream(declaredFields).iterator();
-            ArrayList<String> columns = new ArrayList<>();
-            while (iterator.hasNext()) {
-                Field attribute = iterator.next();
-                String attributeName = attribute.getName();
-
-            }
-        } catch (Throwable exception) {
-            if (loggerIsAvailable) {
-                String message = "Reflection of " + type.getName() + " failed, can't create table for collection.";
-                logger.log(LogEntry.Severity.ERROR, message);
-            }
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-            throw new KintoException(exception.getMessage());
-        }
-        return null;
     }
 
     /**
