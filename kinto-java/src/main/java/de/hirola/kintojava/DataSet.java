@@ -29,17 +29,17 @@ public final class DataSet {
     private String value;
 
     // SQLite uses a more general dynamic type system
-    private Map<Class<?>,String> dataMappings = Map.of(
-            String.class,"TEXT",
-            Boolean.class,"NUMERIC",
-            Integer.class,"INTEGER",
-            Float.class,"REAL",
-            Double.class,"REAL",
-            Instant.class,"INTEGER");
+    private Map<String,String> dataMappings = Map.of(
+            "java.lang.String","TEXT",
+            "boolean","NUMERIC",
+            "int","INTEGER",
+            "float","REAL",
+            "double","REAL",
+            "java.time.Instant","INTEGER");
 
     public DataSet(Field attribute) throws KintoException {
         if (attribute == null) {
-            throw new KintoException("Attribute must not null.");
+            throw new KintoException("Attribute must not be null.");
         }
         initAttributes(attribute);
     }
@@ -47,10 +47,8 @@ public final class DataSet {
     private void initAttributes(Field attribute) throws KintoException {
         // array of kinto objects
         if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
-            // ignore
-            sqlDataTypeString = null;
-            value =null;
-            return;
+            // error - 1:m in separate table
+            throw new KintoException("Attribute must not an be array.");
         }
         // kinto object
         Class<?> attributeSuperClass = attribute.getType().getSuperclass();
@@ -61,7 +59,7 @@ public final class DataSet {
             }
         } if (sqlDataTypeString == null) {
             // primitive data types
-            sqlDataTypeString = dataMappings.get(attribute.getType());
+            sqlDataTypeString = dataMappings.get(attribute.getType().getName());
             if (sqlDataTypeString == null) {
                 throw new KintoException("Unsupported data type.");
             }
