@@ -137,23 +137,14 @@ public class KintoCollection {
                     while (iterator.hasNext()) {
                         Field attribute = iterator.next();
                         if (attribute.isAnnotationPresent(Persisted.class)) {
-                            String columnName = attribute.getName();
-                            //  1. "embedded" kinto objects (1:1 relations)
-                            Class<?> attributeSuperClass = attribute.getType().getSuperclass();
-                            if (attributeSuperClass != null) {
-                                if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
-                                    // "foreign key" -> rename column to lower classname+id
-                                    String attributeClassName = attribute.getType().getSimpleName().toLowerCase(Locale.ROOT);
-                                    columnName = attributeClassName + "id";
-                                }
-                            }
-                            // 2. create table for "embedded" List of kinto objects (1:m relations)
+                            columns.add(attribute.getName());
+                            // create table for "embedded" List of kinto objects (1:m relations)
                             if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
                                 // build the sql statement for the collection relation table
                                 // <name of type>+idTO<name of type>+id
                                 // get the class name of type in list (https://stackoverflow.com/questions/1942644/get-generic-type-of-java-util-list)
                                 Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
-                                attributeSuperClass  = arrayListObjectClass.getSuperclass();
+                                Class<?> attributeSuperClass  = arrayListObjectClass.getSuperclass();
                                 if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
                                     String attributeDeclaringClassName = attribute.getDeclaringClass().getSimpleName();
                                     String attributeClassName = arrayListObjectClass.getSimpleName();
@@ -201,7 +192,6 @@ public class KintoCollection {
                                             logger.log(LogEntry.Severity.DEBUG, message);
                                         }
                                     }
-                                    columns.add(columnName);
                                 }
                             }
                         }

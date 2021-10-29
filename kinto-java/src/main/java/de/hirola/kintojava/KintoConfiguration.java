@@ -1,7 +1,14 @@
 package de.hirola.kintojava;
 
+import de.hirola.kintojava.logger.LogEntry;
+
 import java.io.File;
+import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Locale;
 
 /**
  * Configuration
@@ -23,12 +30,59 @@ public class KintoConfiguration {
      *
      * @param builder Configuration builder (pattern)
      */
-    public KintoConfiguration(Builder builder) {
+    public KintoConfiguration(Builder builder) throws KintoException {
         this.bucket = builder.bucket;
         this.objectTypes = builder.objectTypes;
+        validateObjectList();
         this.kintoServer = builder.kintoServer;
         this.kintoPort = builder.kintoPort;
         this.localdbPath = builder.localdbPath;
+    }
+
+    // check if all attributes types in object list
+    // use reflection to check attributes
+    private void validateObjectList() throws KintoException {
+        try {
+            Iterator<Class <? extends KintoObject>> typeIterator = objectTypes.stream().iterator();
+            while (typeIterator.hasNext()) {
+                Class<? extends KintoObject> type = typeIterator.next();
+                Field[] declaredFields = type.getDeclaredFields();
+                Iterator<Field> attributeIterator = Arrays.stream(declaredFields).iterator();
+                while (attributeIterator.hasNext()) {
+                    Field attribute = attributeIterator.next();
+                    if (attribute.isAnnotationPresent(Persisted.class)) {
+                        //  "embedded" kinto objects
+                        Class<?> attributeSuperClass = attribute.getType().getSuperclass();
+                        if (attributeSuperClass != null) {
+                            if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
+                                String attributeClassName = attribute.getType().getSimpleName();
+                                Iterator<Class <? extends KintoObject>> iterator = objectTypes.stream().iterator();
+                                boolean typeIsInList = false;
+                                while (iterator.hasNext()) {
+                                    // is type in object list?
+                                    Class<? extends KintoObject> typeInList = iterator.next();
+                                    if (typeInList.getSimpleName().equalsIgnoreCase(attributeClassName)) {
+                                        typeIsInList = true;
+                                    }
+                                }
+                                if (!typeIsInList) {
+                                    String errorMessage = "The kinto object type of attribute \""
+                                            .concat(attribute.getName())
+                                            .concat("\" is not in the object types configuration.");
+
+                                    throw new KintoException(errorMessage);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable exception) {
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(exception.getMessage());
+        }
     }
 
     /**
@@ -107,7 +161,7 @@ public class KintoConfiguration {
             return this;
         }
 
-        public KintoConfiguration build() {
+        public KintoConfiguration build() throws KintoException {
             return new KintoConfiguration(this);
         }
 

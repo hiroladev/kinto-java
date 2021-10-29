@@ -50,7 +50,7 @@ public final class DataSet {
             // error - 1:m in separate table
             throw new KintoException("Attribute must not an be array.");
         }
-        // kinto object
+        // kinto object -> foreign key
         Class<?> attributeSuperClass = attribute.getType().getSuperclass();
         if (attributeSuperClass != null) {
             if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
