@@ -269,6 +269,7 @@ public class KintoCollection {
             String errorMessage = "The object is not from type " + type.getSimpleName() + " .";
             throw new KintoException(errorMessage);
         }
+        // search for object with id in local datastore
         // building sql select command
         try {
             StringBuilder sql = new StringBuilder("SELECT name FROM ");
@@ -317,6 +318,12 @@ public class KintoCollection {
     }
 
     public String addRecord(KintoObject kintoObject) throws KintoException {
+        // all embedded kinto objects in local datastore?
+        // check, if has the object an id
+        Iterator <DataSet> iterator = storableAttributes.values().iterator();
+        while(iterator.hasNext()) {
+
+        }
         // insert or update?
         if (isNewRecord(kintoObject)) {
             // building sql insert command
