@@ -26,7 +26,6 @@ import java.util.Map;
 public final class DataSet {
 
     private String sqlDataTypeString;
-    private String value;
     private boolean isKintoObject;
 
     // SQLite uses a more general dynamic type system
@@ -67,21 +66,10 @@ public final class DataSet {
                 throw new KintoException("Unsupported data type.");
             }
         }
-        try {
-            // Values stored as TEXT, INTEGER, INTEGER, REAL, TEXT.
-            // INSERT INTO t1 VALUES('500.0', '500.0', '500.0', '500.0', '500.0');
-            value = attribute.toString();
-        } catch (Exception exception) {
-            throw new KintoException(exception);
-        }
     }
 
     public String getSqlDataTypeString() {
         return sqlDataTypeString;
-    }
-
-    public String getValue() {
-        return value;
     }
 
     public boolean isKintoObject() {

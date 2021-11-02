@@ -63,13 +63,135 @@ public class KintoCollection {
         // local and remote
         createCollectionLocal();
     }
+    /**
+     * .
+     * @return Type of objects in the collection
+     */
+    public Class<? extends KintoObject> getType() {
+        return type;
+    }
+
+    /**
+     * Returns the name of collection.
+     *
+     * @return name of collection
+     */
+    public String getName() {
+        return type.getSimpleName();
+    }
+
+    /**
+     *
+     * @return <code>true</code> if the collection exits in remote kinto
+     */
+    public boolean isSynced() {
+        return isSynced;
+    }
+
+    public String addRecord(KintoObject kintoObject) throws KintoException {
+        // all embedded kinto objects in local datastore?
+        // check, if has the object an id
+        for (String attributeName: storableAttributes.keySet()) {
+            DataSet dataSet = storableAttributes.get(attributeName);
+            // 1. 1:1 relations
+            if (dataSet.isKintoObject()) {
+                // getAttribute()
+                // capitalize the first letter of a string
+                String methodName = "get" + attributeName.substring(0, 1).toUpperCase() + attributeName.substring(1);
+                try {
+                    //  obj.getClass().newInstance()
+                    Method getEmbeddedObjectMethod = kintoObject.getClass().getMethod(methodName);
+                    KintoObject embeddedObject = (KintoObject) getEmbeddedObjectMethod.invoke(kintoObject);
+                    if (isNewRecord(embeddedObject)) {
+                        String errorMessage = "The embedded object from type "
+                                + embeddedObject.getClass().getSimpleName()
+                                + " must exist in datastore before saving this object.";
+                        throw new KintoException(errorMessage);
+                    }
+                } catch (NoSuchMethodException exception) {
+                    String errorMessage = "The setter method \"" + methodName + "\" for the embedded object was not found.";
+                    errorMessage = errorMessage + " - " + exception.getMessage();
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                    throw new KintoException(errorMessage);
+                } catch (InvocationTargetException exception) {
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                } catch (IllegalAccessException exception) {
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                }
+            }
+            // TODO 2. 1:m relations
+        }
+        // insert or update?
+        if (isNewRecord(kintoObject)) {
+            // building sql insert command
+            // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
+            StringBuilder sql = new StringBuilder("INSERT INTO ");
+            // the name of the collection (table)
+            sql.append(getName());
+            // attributes = columns
+            // build a map with attribute and value
+            sql.append(" (id,");
+            // all attributes -> columns
+            int loops = 1;
+            int size = storableAttributes.size();
+            // attributes and values in same order!
+            StringBuilder valuesString = new StringBuilder(") VALUES(");
+            for (String attributeName: storableAttributes.keySet()) {
+                sql.append(attributeName);
+                valuesString.append(getValueForAttributeAsString(kintoObject, attributeName));
+                if (loops < size) {
+                    sql.append(",");
+                    valuesString.append(",");
+                }
+                loops++;
+            }
+            sql.append(valuesString.toString());
+            sql.append("';");
+
+            return "id";
+        }
+        // update
+        updateRecord(kintoObject);
+        return kintoObject.getId();
+    }
+
+    public void updateRecord(KintoObject kintoObject) throws KintoException {
+        if (isNewRecord(kintoObject)) {
+           throw new KintoException("Can't update a non existent object.");
+        }
+        // update in local datastore
+        // increment the usn
+    }
+
+    public List<KintoObject> findAll() {
+        return null;
+    }
+
+    public List<KintoObject> findByQuery(KintoQuery query) {
+        return null;
+    }
 
     // build a map with attribute and value for the object
     // HashMap<attribute name, data set>
     private HashMap<String,DataSet> buildAttributesMap(Class<? extends KintoObject> type) throws KintoException {
         HashMap<String, DataSet> attributes = new HashMap<>();
         try {
-            // use reflection to get attribute and value
+            // use reflection to get (storable) attributes of the objects
             // fields with annotation @Persisted
             Field[] declaredFields = type.getDeclaredFields();
             Iterator<Field> iterator = Arrays.stream(declaredFields).iterator();
@@ -290,113 +412,53 @@ public class KintoCollection {
                 return false;
             }
         } catch (SQLException exception) {
-            throw new KintoException();
+            throw new KintoException(exception);
         }
         return true;
     }
 
-    /**
-     * .
-     * @return Type of objects in the collection
-     */
-    public Class<? extends KintoObject> getType() {
-        return type;
-    }
-
-    /**
-     * Returns the name of collection.
-     *
-     * @return name of collection
-     */
-    public String getName() {
-        return type.getSimpleName();
-    }
-
-    /**
-     *
-     * @return <code>true</code> if the collection exits in remote kinto
-     */
-    public boolean isSynced() {
-        return isSynced;
-    }
-
-    public String addRecord(KintoObject kintoObject) throws KintoException {
-        // all embedded kinto objects in local datastore?
-        // check, if has the object an id
-        for (String attributeName: storableAttributes.keySet()) {
+    private String getValueForAttributeAsString(KintoObject kintoObject, String attributeName) throws KintoException {
+        String valueForAttribute = "";
+        String methodName = "get" + attributeName.substring(0, 1).toUpperCase() + attributeName.substring(1);
+        try {
             DataSet dataSet = storableAttributes.get(attributeName);
+            Method getAttributeMethod = kintoObject.getClass().getMethod(methodName);
             if (dataSet.isKintoObject()) {
-                // getAttribute()
-                // capitalize the first letter of a string
-                String methodName = "get" + attributeName.substring(0, 1).toUpperCase() + attributeName.substring(1);
-                try {
-                    Method getEmbeddedObjectMethod = KintoObject.class.getMethod(methodName);
-                    KintoObject embeddedObject = (KintoObject) getEmbeddedObjectMethod.invoke(kintoObject);
-                    if (isNewRecord(embeddedObject)) {
-                        String errorMessage = "The embedded object(s) must exist in datastore before saving this object.";
-                        throw new KintoException(errorMessage);
-                    }
-                } catch (NoSuchMethodException exception) {
-                    String errorMessage = "The setter method \"" + methodName + "\" for the embedded object was not found.";
-                    errorMessage = errorMessage + " - " + exception.getMessage();
-                    if (loggerIsAvailable) {
-                        logger.log(LogEntry.Severity.ERROR, errorMessage);
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                    throw new KintoException(errorMessage);
-                } catch (InvocationTargetException exception) {
-                    if (loggerIsAvailable) {
-                        logger.log(LogEntry.Severity.ERROR, exception.getMessage());
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                } catch (IllegalAccessException exception) {
-                    if (loggerIsAvailable) {
-                        logger.log(LogEntry.Severity.ERROR, exception.getMessage());
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                }
+                // return the id of the object
+                KintoObject embeddedObject = (KintoObject) getAttributeMethod.invoke(kintoObject);
+                valueForAttribute = embeddedObject.getId();
+            } else {
+                // return value for simple data type
+                valueForAttribute = String.valueOf(getAttributeMethod.invoke(kintoObject));
+            }
+        } catch (NoSuchMethodException exception) {
+            String errorMessage = "The getter method \""
+                    + methodName + "\" for the attribute \""
+                    + attributeName
+                    + " was not found.";
+            errorMessage = errorMessage + " - " + exception.getMessage();
+            if (loggerIsAvailable) {
+                logger.log(LogEntry.Severity.ERROR, errorMessage);
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(errorMessage);
+        } catch (InvocationTargetException exception) {
+            if (loggerIsAvailable) {
+                logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+        } catch (IllegalAccessException exception) {
+            if (loggerIsAvailable) {
+                logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
             }
         }
-        // insert or update?
-        if (isNewRecord(kintoObject)) {
-            // building sql insert command
-            // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
-            StringBuilder sql = new StringBuilder("INSERT INTO (");
-            // the name of the collection (table)
-            sql.append(getName());
-            // attributes = columns
-            // build a map with attribute and value
-            sql.append(" VALUES(");
-            // values
-            sql.append(" VALUES(");
-            sql.append("';");
-
-            return "id";
-        }
-        // update
-        updateRecord(kintoObject);
-        return kintoObject.getId();
-    }
-
-    public void updateRecord(KintoObject kintoObject) throws KintoException {
-        if (isNewRecord(kintoObject)) {
-           throw new KintoException("Can't update a non existent object.");
-        }
-        // update in local datastore
-        // increment the usn
-    }
-
-    public List<KintoObject> findAll() {
-        return null;
-    }
-
-    public List<KintoObject> findByQuery(KintoQuery query) {
-        return null;
+        return valueForAttribute;
     }
 }

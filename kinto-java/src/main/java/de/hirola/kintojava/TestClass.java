@@ -25,14 +25,22 @@ public class TestClass {
                     .kintoServer("dev.hirola.de")
                     .build();
             Kinto kinto = Kinto.getInstance(configuration);
-            Katze meinekatze = new Katze();
-            meinekatze.setName("Lia");
-            meinekatze.setJahre(10);
+
+            Hund hund1 = new Hund();
+            hund1.setName("Wuffi");
+            hund1.setJahre(5);
+
+            Katze meineKatze = new Katze();
+            meineKatze.setName("Lia");
+            meineKatze.setJahre(10);
+            meineKatze.setId("10");
 
             User user1 = new User();
             user1.setVorname("Hans");
             user1.setName("Wurst");
-            user1.setMeineKatze(meinekatze);
+            user1.setMeineKatze(meineKatze);
+
+            kinto.add(meineKatze);
 
             kinto.add(user1);
 
