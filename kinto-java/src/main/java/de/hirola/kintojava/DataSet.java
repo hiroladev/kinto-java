@@ -27,6 +27,7 @@ public final class DataSet {
 
     private String sqlDataTypeString;
     private String value;
+    private boolean isKintoObject;
 
     // SQLite uses a more general dynamic type system
     private Map<String,String> dataMappings = Map.of(
@@ -41,6 +42,7 @@ public final class DataSet {
         if (attribute == null) {
             throw new KintoException("Attribute must not be null.");
         }
+        isKintoObject = false;
         initAttributes(attribute);
     }
 
@@ -56,6 +58,7 @@ public final class DataSet {
             if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
                 // "foreign key" classname+id
                 sqlDataTypeString = "TEXT";
+                isKintoObject = true;
             }
         } if (sqlDataTypeString == null) {
             // primitive data types
@@ -81,4 +84,7 @@ public final class DataSet {
         return value;
     }
 
+    public boolean isKintoObject() {
+        return isKintoObject;
+    }
 }

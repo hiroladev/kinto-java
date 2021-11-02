@@ -4,6 +4,8 @@ import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -25,6 +27,7 @@ public class KintoCollection {
     private final Connection localdbConnection;
     private final Class<? extends KintoObject> type;
     // storable attributes
+    // attribute name, dataset
     HashMap<String,DataSet> storableAttributes;
     // 1:m relations for embedded KintoObject (Class) in table (String)
     private final HashMap<Class<? extends KintoObject>, String> relationTables;
@@ -320,9 +323,45 @@ public class KintoCollection {
     public String addRecord(KintoObject kintoObject) throws KintoException {
         // all embedded kinto objects in local datastore?
         // check, if has the object an id
-        Iterator <DataSet> iterator = storableAttributes.values().iterator();
-        while(iterator.hasNext()) {
-
+        for (String attributeName: storableAttributes.keySet()) {
+            DataSet dataSet = storableAttributes.get(attributeName);
+            if (dataSet.isKintoObject()) {
+                // getAttribute()
+                // capitalize the first letter of a string
+                String methodName = "get" + attributeName.substring(0, 1).toUpperCase() + attributeName.substring(1);
+                try {
+                    Method getEmbeddedObjectMethod = KintoObject.class.getMethod(methodName);
+                    KintoObject embeddedObject = (KintoObject) getEmbeddedObjectMethod.invoke(kintoObject);
+                    if (isNewRecord(embeddedObject)) {
+                        String errorMessage = "The embedded object(s) must exist in datastore before saving this object.";
+                        throw new KintoException(errorMessage);
+                    }
+                } catch (NoSuchMethodException exception) {
+                    String errorMessage = "The setter method \"" + methodName + "\" for the embedded object was not found.";
+                    errorMessage = errorMessage + " - " + exception.getMessage();
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                    throw new KintoException(errorMessage);
+                } catch (InvocationTargetException exception) {
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                } catch (IllegalAccessException exception) {
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                }
+            }
         }
         // insert or update?
         if (isNewRecord(kintoObject)) {

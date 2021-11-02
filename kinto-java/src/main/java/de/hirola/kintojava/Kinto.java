@@ -10,7 +10,7 @@ import java.sql.SQLException;
 import java.util.*;
 
 /**
- * The singleton object for data management with sqllite and kinto.
+ * The singleton object for data management with sqlite and kinto.
  *
  * @author Michael Schmidt (Hirola)
  * @since 0.1.0
@@ -116,8 +116,13 @@ public final class Kinto {
      * @return The unique id for the object.
      */
     public String add(KintoObject object) throws KintoException {
-        // 1:m relations
-        //
+        Iterator<KintoCollection> iterator = collections.stream().iterator();
+        while (iterator.hasNext()) {
+            KintoCollection collection = iterator.next();
+            if (collection.getType().equals(object.getClass())) {
+                collection.addRecord(object);
+            }
+        }
         return "ID";
     }
 

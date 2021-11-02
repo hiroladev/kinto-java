@@ -17,8 +17,9 @@ public class KintoException extends Exception {
         super(exception);
     }
 
-    public KintoException(String errorMessage) {
-        super(errorMessage);
+
+    public KintoException(String message) {
+        super(message);
     }
 
     @Override
