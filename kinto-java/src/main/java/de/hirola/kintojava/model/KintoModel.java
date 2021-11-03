@@ -1,4 +1,6 @@
-package de.hirola.kintojava;
+package de.hirola.kintojava.model;
+
+import de.hirola.kintojava.model.KintoObject;
 
 /**
  * Interface for marking classes as KintoObjects,

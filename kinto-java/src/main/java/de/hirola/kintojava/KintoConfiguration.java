@@ -1,14 +1,13 @@
 package de.hirola.kintojava;
 
-import de.hirola.kintojava.logger.LogEntry;
+import de.hirola.kintojava.model.KintoObject;
+import de.hirola.kintojava.model.Persisted;
 
 import java.io.File;
 import java.lang.reflect.Field;
-import java.lang.reflect.ParameterizedType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.Locale;
 
 /**
  * Configuration

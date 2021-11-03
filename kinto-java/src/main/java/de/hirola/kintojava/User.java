@@ -1,5 +1,8 @@
 package de.hirola.kintojava;
 
+import de.hirola.kintojava.model.KintoObject;
+import de.hirola.kintojava.model.Persisted;
+
 import java.util.ArrayList;
 
 public class User extends KintoObject {

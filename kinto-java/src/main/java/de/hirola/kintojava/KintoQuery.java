@@ -1,5 +1,7 @@
 package de.hirola.kintojava;
 
+import de.hirola.kintojava.model.KintoObject;
+
 import java.sql.Connection;
 import java.util.List;
 

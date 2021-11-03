@@ -2,6 +2,7 @@ package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.Logger;
 import de.hirola.kintojava.logger.LoggerConfiguration;
+import de.hirola.kintojava.model.KintoObject;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -33,7 +34,6 @@ public class TestClass {
             Katze meineKatze = new Katze();
             meineKatze.setName("Lia");
             meineKatze.setJahre(10);
-            meineKatze.setId("10");
 
             User user1 = new User();
             user1.setVorname("Hans");

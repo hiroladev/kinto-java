@@ -1,4 +1,4 @@
-package de.hirola.kintojava;
+package de.hirola.kintojava.model;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

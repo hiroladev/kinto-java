@@ -2,8 +2,8 @@ package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
+import de.hirola.kintojava.model.KintoObject;
 
-import java.lang.annotation.Annotation;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -115,7 +115,7 @@ public final class Kinto {
      * @param object Object to be added to the local datastore.
      * @return The unique id for the object.
      */
-    public String add(KintoObject object) throws KintoException {
+    public void add(KintoObject object) throws KintoException {
         Iterator<KintoCollection> iterator = collections.stream().iterator();
         while (iterator.hasNext()) {
             KintoCollection collection = iterator.next();
@@ -123,7 +123,6 @@ public final class Kinto {
                 collection.addRecord(object);
             }
         }
-        return "ID";
     }
 
     public void update(KintoObject object) {
