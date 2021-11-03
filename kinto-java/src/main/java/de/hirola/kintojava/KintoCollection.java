@@ -161,7 +161,7 @@ public class KintoCollection {
                 loops++;
             }
             sql.append(valuesString.toString());
-            sql.append("';");
+            sql.append(");");
 
             return "id";
         }
@@ -397,9 +397,9 @@ public class KintoCollection {
         // search for object with id in local datastore
         // building sql select command
         try {
-            StringBuilder sql = new StringBuilder("SELECT name FROM ");
+            StringBuilder sql = new StringBuilder("SELECT id FROM ");
             sql.append(getName());
-            sql.append("WHERE id='");
+            sql.append(" WHERE id='");
             sql.append(kintoObject.getId());
             sql.append("';");
             Statement statement = localdbConnection.createStatement();
