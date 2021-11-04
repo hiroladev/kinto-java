@@ -149,27 +149,38 @@ public class KintoCollection {
                 sql.append(getName());
                 // attributes = columns
                 // build a map with attribute and value
-                sql.append(" uuid, kintoid,");
+                sql.append(" (uuid, kintoid, usn, ");
                 // all attributes -> columns
                 int loops = 1;
                 int size = storableAttributes.size();
                 // attributes and values in same order!
                 StringBuilder valuesString = new StringBuilder(") VALUES(");
                 //  primary key from uuid
+                valuesString.append("'");
                 valuesString.append(kintoObject.getUUID());
                 // kinto record id later from sync
-                valuesString.append(",'',");
+                // usn = 0 on insert
+                valuesString.append("','', 0, ");
                 for (String attributeName : storableAttributes.keySet()) {
                     sql.append(attributeName);
+                    valuesString.append("'");
                     valuesString.append(getValueForAttributeAsString(kintoObject, attributeName));
+                    valuesString.append("'");
                     if (loops < size) {
-                        sql.append(",");
-                        valuesString.append(",");
+                        sql.append(" ,");
+                        valuesString.append(" ,");
                     }
                     loops++;
                 }
                 sql.append(valuesString.toString());
                 sql.append(");");
+                try {
+                    Statement statement = localdbConnection.createStatement();
+                    statement.execute(sql.toString());
+                } catch (SQLException exception) {
+                    String errorMessage = "Error adding object to local datastore: " + exception.getMessage();
+                    throw new KintoException(errorMessage);
+                }
             } else {
                 // update
                 updateRecord(kintoObject);
@@ -373,6 +384,7 @@ public class KintoCollection {
         }
     }
 
+    // TODO implement func validate schema
     private boolean isSchemeValidForType(Class<? extends KintoObject> type) {
         // check schema
         // The sqlite_schema table contains one row for each table, index, view,
