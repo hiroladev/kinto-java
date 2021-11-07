@@ -1,5 +1,7 @@
 package de.hirola.kintojava;
 
+import de.hirola.kintojava.model.KintoObject;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.time.Instant;
@@ -25,8 +27,12 @@ import java.util.Map;
  */
 public final class DataSet {
 
+    public static final String RELATION_DATA_MAPPING_STRING = "RELATION";
+
     private String sqlDataTypeString;
+    private Class<? extends KintoObject> arrayType;
     private boolean isKintoObject;
+    private boolean isArray;
 
     // SQLite uses a more general dynamic type system
     private Map<String,String> dataMappings = Map.of(
@@ -35,21 +41,23 @@ public final class DataSet {
             "int","INTEGER",
             "float","REAL",
             "double","REAL",
-            "java.time.Instant","INTEGER");
+            "java.time.Instant","INTEGER",
+            "java.util.ArrayList","RELATION");
 
     public DataSet(Field attribute) throws KintoException {
         if (attribute == null) {
             throw new KintoException("Attribute must not be null.");
         }
         isKintoObject = false;
+        isArray = false;
         initAttributes(attribute);
     }
 
     private void initAttributes(Field attribute) throws KintoException {
         // array of kinto objects
         if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
-            // error - 1:m in separate table
-            throw new KintoException("Attribute must not an be array.");
+            arrayType = ((Class<? extends KintoObject>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+            isArray = true;
         }
         // kinto object -> foreign key
         Class<?> attributeSuperClass = attribute.getType().getSuperclass();
@@ -74,5 +82,13 @@ public final class DataSet {
 
     public boolean isKintoObject() {
         return isKintoObject;
+    }
+
+    public boolean isArray() {
+        return isArray;
+    }
+
+    public Class<? extends KintoObject> getArrayType() {
+        return arrayType;
     }
 }

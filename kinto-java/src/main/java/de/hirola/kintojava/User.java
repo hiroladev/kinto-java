@@ -50,6 +50,10 @@ public class User extends KintoObject {
         }
     }
 
+    public ArrayList<Hund> getHunde() {
+        return hunde;
+    }
+
     public Katze getMeineKatze() {
         return meineKatze;
     }
