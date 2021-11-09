@@ -4,9 +4,6 @@ import de.hirola.kintojava.model.KintoObject;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -29,13 +26,14 @@ public final class DataSet {
 
     public static final String RELATION_DATA_MAPPING_STRING = "RELATION";
 
+    private Field attribute;
     private String sqlDataTypeString;
     private Class<? extends KintoObject> arrayType;
     private boolean isKintoObject;
     private boolean isArray;
 
     // SQLite uses a more general dynamic type system
-    private Map<String,String> dataMappings = Map.of(
+    private Map<String,String> DATA_MAPPINGS = Map.of(
             "java.lang.String","TEXT",
             "boolean","NUMERIC",
             "int","INTEGER",
@@ -48,12 +46,13 @@ public final class DataSet {
         if (attribute == null) {
             throw new KintoException("Attribute must not be null.");
         }
+        this.attribute = attribute;
         isKintoObject = false;
         isArray = false;
-        initAttributes(attribute);
+        initAttributes();
     }
 
-    private void initAttributes(Field attribute) throws KintoException {
+    private void initAttributes() throws KintoException {
         // array of kinto objects
         if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
             arrayType = ((Class<? extends KintoObject>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
@@ -67,17 +66,26 @@ public final class DataSet {
                 sqlDataTypeString = "TEXT";
                 isKintoObject = true;
             }
-        } if (sqlDataTypeString == null) {
+        }
+        if (sqlDataTypeString == null) {
             // primitive data types
-            sqlDataTypeString = dataMappings.get(attribute.getType().getName());
+            sqlDataTypeString = DATA_MAPPINGS.get(attribute.getType().getName());
             if (sqlDataTypeString == null) {
                 throw new KintoException("Unsupported data type.");
             }
         }
     }
 
+    public Field getAttribute() {
+        return attribute;
+    }
+
     public String getSqlDataTypeString() {
         return sqlDataTypeString;
+    }
+
+    public String getJavaDataTypeString() {
+        return attribute.getType().getSimpleName();
     }
 
     public boolean isKintoObject() {

@@ -134,7 +134,15 @@ public final class Kinto {
     }
 
     public List<KintoObject> findAll(Class<? extends KintoObject> type) {
-        return null;
+        List<KintoObject> objects = new ArrayList<>();
+        Iterator<KintoCollection> iterator = collections.stream().iterator();
+        while (iterator.hasNext()) {
+            KintoCollection collection = iterator.next();
+            if (collection.getType().equals(type)) {
+                objects = collection.findAll();
+            }
+        }
+        return objects;
     }
 
     // Publish all local data to the server, import remote changes

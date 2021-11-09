@@ -5,14 +5,9 @@ import de.hirola.kintojava.logger.Logger;
 import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.lang.reflect.*;
+import java.sql.*;
+import java.time.Instant;
 import java.util.*;
 
 /**
@@ -93,83 +88,16 @@ public class KintoCollection {
     public void addRecord(KintoObject kintoObject) throws KintoException {
         // object from collection type?
         if (isValidObjectType(kintoObject)) {
-            // all embedded kinto objects in local datastore?
-            // check, if has the object an objectUID
-            for (String attributeName : storableAttributes.keySet()) {
-                DataSet dataSet = storableAttributes.get(attributeName);
-                // 1. 1:1 relations
-                if (dataSet.isKintoObject()) {
-                    // getAttribute()
-                    // capitalize the first letter of a string
-                    String methodName = "get" + attributeName.substring(0, 1).toUpperCase() + attributeName.substring(1);
-                    try {
-                        //  obj.getClass().newInstance()
-                        Method getEmbeddedObjectMethod = kintoObject.getClass().getMethod(methodName);
-                        KintoObject embeddedObject = (KintoObject) getEmbeddedObjectMethod.invoke(kintoObject);
-                        if (isNewRecord(embeddedObject)) {
-                            String errorMessage = "The embedded object from type "
-                                    + embeddedObject.getClass().getSimpleName()
-                                    + " must exist in datastore before saving this object.";
-                            throw new KintoException(errorMessage);
-                        }
-                    } catch (NoSuchMethodException exception) {
-                        String errorMessage = "The setter method \"" + methodName + "\" for the embedded object was not found.";
-                        errorMessage = errorMessage + " - " + exception.getMessage();
-                        if (loggerIsAvailable) {
-                            logger.log(LogEntry.Severity.ERROR, errorMessage);
-                        }
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                        throw new KintoException(errorMessage);
-                    } catch (InvocationTargetException exception) {
-                        if (loggerIsAvailable) {
-                            logger.log(LogEntry.Severity.ERROR, exception.getMessage());
-                        }
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                    } catch (IllegalAccessException exception) {
-                        if (loggerIsAvailable) {
-                            logger.log(LogEntry.Severity.ERROR, exception.getMessage());
-                        }
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                    }
-                }
-                // 2. 1:m relations
-                if (dataSet.isArray()) {
-                    // check if relation table exist
-                    Class<? extends KintoObject> arrayObjectType = dataSet.getArrayType();
-                    if (type != null){
-                        String relationTable = relationTables.get(type);
-                        ArrayList<? extends KintoObject> list = new ArrayList<>();
-                        // build sql insert command
-                        StringBuilder sql = new StringBuilder("INSERT INTO ");
-                        // the name of the relation table
-                        sql.append(relationTable);
-                        sql.append(" (");
-                        // first the object type uuid
-                        sql.append(getName().toLowerCase(Locale.ROOT));
-                        sql.append("uuid, ");
-                        // then the attribute type name
-                        sql.append(arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT));
-                        sql.append("uuid) VALUES(");
-                        sql.append("");
-                    }
-                }
-            }
             // insert or update?
             if (isNewRecord(kintoObject)) {
-                // building sql insert command
+                // building sql insert command for the kinto object of this collection
                 // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
-                StringBuilder sql = new StringBuilder("INSERT INTO ");
+                StringBuilder createRecordSQL = new StringBuilder("INSERT INTO ");
                 // the name of the collection (table)
-                sql.append(getName());
+                createRecordSQL.append(getName());
                 // attributes = columns
                 // build a map with attribute and value
-                sql.append(" (uuid, kintoid, usn, ");
+                createRecordSQL.append(" (uuid, kintoid, usn, ");
                 // all attributes -> columns
                 int loops = 1;
                 int size = storableAttributes.size();
@@ -192,25 +120,164 @@ public class KintoCollection {
                     String sqlDataTypeString = dataSet.getSqlDataTypeString();
                     // 1:m relations in extra tables
                     if (!sqlDataTypeString.equalsIgnoreCase(DataSet.RELATION_DATA_MAPPING_STRING)) {
-                        sql.append(attributeName);
+                        createRecordSQL.append(attributeName);
                         valuesString.append("'");
                         valuesString.append(getValueForAttributeAsString(kintoObject, attributeName));
                         valuesString.append("'");
                         if (loops < size) {
-                            sql.append(" ,");
+                            createRecordSQL.append(" ,");
                             valuesString.append(" ,");
                         }
                     }
                     loops++;
                 }
-                sql.append(valuesString.toString());
-                sql.append(");");
+                createRecordSQL.append(valuesString.toString());
+                createRecordSQL.append(");");
+                // building sql insert command for the embedded kinto object of this collection (1:m relations)
+                // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
+                ArrayList<String> createRelationRecordSQLCommands = new ArrayList<>();
+                String attributeName = "";
                 try {
-                    Statement statement = localdbConnection.createStatement();
-                    statement.execute(sql.toString());
-                } catch (SQLException exception) {
-                    String errorMessage = "Error adding object to local datastore: " + exception.getMessage();
+                    for (String key : storableAttributes.keySet()) {
+                        attributeName = key;
+                        DataSet dataSet = storableAttributes.get(attributeName);
+                        // get attributes using reflection
+                        Class clazz = kintoObject.getClass();
+                        // 1. 1:1 relations
+                        if (dataSet.isKintoObject()) {
+                            Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
+                            embeddedObjectAttribute.setAccessible(true);
+                            KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
+                            // all objects in local datastore?
+                            if (isNewRecord(embeddedObject)) {
+                                String errorMessage = "The embedded object from type "
+                                        + embeddedObject.getClass().getSimpleName()
+                                        + " must exist in datastore before saving this object.";
+                                throw new KintoException(errorMessage);
+                            }
+                        }
+                        // 1: m relations
+                        if (dataSet.isArray()) {
+                            // check if relation table exist
+                            Class<? extends KintoObject> arrayObjectType = dataSet.getArrayType();
+                            if (type != null){
+                                // add for all embedded kinto objects an entry in relation table
+                                String relationTable = relationTables.get(dataSet.getAttribute());
+                                if (relationTable == null) {
+                                    String errorMessage = "The relation table of "
+                                            + arrayObjectType.getSimpleName()
+                                            + " was not found in configuration.";
+                                    throw  new KintoException(errorMessage);
+                                }
+                                Field arrayAttribute = clazz.getDeclaredField(attributeName);
+                                arrayAttribute.setAccessible(true);
+                                Object arrayAttributeObject = arrayAttribute.get(kintoObject);
+                                if (arrayAttributeObject instanceof ArrayList) {
+                                    ArrayList<? extends KintoObject> kintoObjects = (ArrayList<? extends KintoObject>) arrayAttributeObject;
+                                    Iterator<? extends KintoObject> iterator = kintoObjects.iterator();
+                                    while(iterator.hasNext()) {
+                                        KintoObject arrayObject = iterator.next();
+                                        // all objects in local datastore?
+                                        if (isNewRecord(arrayObject)) {
+                                            String errorMessage = "The embedded object from type "
+                                                    + arrayObject.getClass().getSimpleName()
+                                                    + " must exist in datastore before saving this object.";
+                                            throw new KintoException(errorMessage);
+                                        }
+                                        // build sql insert command(s)
+                                        StringBuilder sql = new StringBuilder("INSERT INTO ");
+                                        // the name of the relation table
+                                        sql.append(relationTable);
+                                        sql.append(" (");
+                                        // first the object type uuid
+                                        sql.append(getName().toLowerCase(Locale.ROOT));
+                                        sql.append("uuid, ");
+                                        // then the attribute type name
+                                        sql.append(arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT));
+                                        sql.append("uuid) VALUES('");
+                                        sql.append(kintoObject.getUUID());
+                                        sql.append("', '");
+                                        sql.append(arrayObject.getUUID());
+                                        sql.append("');");
+                                        // add to the sql command list
+                                        createRelationRecordSQLCommands.add(sql.toString());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (NoSuchFieldException exception) {
+                    String errorMessage = "Getting value for attribute "
+                            + attributeName
+                            + " using reflection failed.";
+                    errorMessage = errorMessage + " - " + exception.getMessage();
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
                     throw new KintoException(errorMessage);
+                } catch (IllegalAccessException exception) {
+                    String errorMessage = "Getting value for attribute "
+                            + attributeName
+                            + " using reflection failed.";
+                    errorMessage = errorMessage + " - " + exception.getMessage();
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                    throw new KintoException(errorMessage);
+                }
+                try {
+                    // execute the sql commands
+                    // use transaction for all statements
+                    localdbConnection.setAutoCommit(false);
+                    Statement statement = localdbConnection.createStatement();
+                    // create entry in collection table
+                    statement.execute(createRecordSQL.toString());
+                    // create relation table entries
+                    if (createRelationRecordSQLCommands.size() > 0) {
+                        Iterator<String> iterator = createRelationRecordSQLCommands.iterator();
+                        while (iterator.hasNext()) {
+                            statement.execute(iterator.next());
+                        }
+                    }
+                    localdbConnection.commit();
+                } catch (SQLException exception) {
+                    try {
+                        // rollback all statements
+                        localdbConnection.rollback();
+                    } catch (SQLException e) {
+                        if (loggerIsAvailable) {
+                            String errorMessage = "Save and rollback failed, inconsistent data are possible: "
+                                    + exception.getMessage();
+                            logger.log(LogEntry.Severity.ERROR, errorMessage);
+                        }
+                        if (Global.DEBUG) {
+                            e.printStackTrace();
+                        }
+                    }
+                    String errorMessage = "Saving the object failed: "
+                            + exception.getMessage();
+                    if (loggerIsAvailable) {
+                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
+                    throw new KintoException(errorMessage);
+                } finally {
+                    try {
+                        // using no transactions again
+                        localdbConnection.setAutoCommit(true);
+                    } catch (SQLException exception) {
+                        if (Global.DEBUG) {
+                            exception.printStackTrace();
+                        }
+                    }
                 }
             } else {
                 // update
@@ -228,7 +295,27 @@ public class KintoCollection {
     }
 
     public List<KintoObject> findAll() {
-        return null;
+        ArrayList<KintoObject> objects = new ArrayList<>();
+        try {
+            StringBuilder sql = new StringBuilder("SELECT * FROM ");
+            sql.append(getName());
+            sql.append(";");
+            Statement statement = localdbConnection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql.toString());
+            while (resultSet.next()) {
+                objects.add(createObjectFromResultSet(resultSet));
+            }
+        } catch (SQLException exception) {
+            if (loggerIsAvailable) {
+                String errorMessage = "Error while searching for objects in local datastore: "
+                        + exception.getMessage();
+                logger.log(LogEntry.Severity.ERROR, errorMessage);
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+        }
+        return objects;
     }
 
     public List<KintoObject> findByQuery(KintoQuery query) {
@@ -489,38 +576,24 @@ public class KintoCollection {
 
     private String getValueForAttributeAsString(KintoObject kintoObject, String attributeName) throws KintoException {
         String valueForAttribute = "";
-        String methodName = "get" + attributeName.substring(0, 1).toUpperCase() + attributeName.substring(1);
         try {
+            Class clazz = kintoObject.getClass();
             DataSet dataSet = storableAttributes.get(attributeName);
-            Method getAttributeMethod = kintoObject.getClass().getMethod(methodName);
             if (dataSet.isKintoObject()) {
                 // return the id of the object
-                KintoObject embeddedObject = (KintoObject) getAttributeMethod.invoke(kintoObject);
+                Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
+                embeddedObjectAttribute.setAccessible(true);
+                KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
                 valueForAttribute = embeddedObject.getUUID();
             } else {
                 // return value for simple data type
-                valueForAttribute = String.valueOf(getAttributeMethod.invoke(kintoObject));
+                Field attributeField = clazz.getDeclaredField(attributeName);
+                attributeField.setAccessible(true);
+                valueForAttribute = String.valueOf(attributeField.get(kintoObject));
             }
-        } catch (NoSuchMethodException exception) {
-            String errorMessage = "The getter method \""
-                    + methodName + "\" for the attribute \""
-                    + attributeName
-                    + " was not found.";
-            errorMessage = errorMessage + " - " + exception.getMessage();
-            if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
-            }
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-            throw new KintoException(errorMessage);
-        } catch (InvocationTargetException exception) {
-            if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, exception.getMessage());
-            }
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
+        } catch (NoSuchFieldException exception) {
+            //TODO: Catch
+            exception.printStackTrace();
         } catch (IllegalAccessException exception) {
             if (loggerIsAvailable) {
                 logger.log(LogEntry.Severity.ERROR, exception.getMessage());
@@ -530,5 +603,72 @@ public class KintoCollection {
             }
         }
         return valueForAttribute;
+    }
+
+    private KintoObject createObjectFromResultSet(ResultSet resultSet) {
+        try {
+            // create object from local datastore using reflection
+            Constructor<? extends KintoObject> constructor = type.getConstructor();
+            KintoObject kintoObject = constructor.newInstance();
+            Class clazz = kintoObject.getClass().getSuperclass();
+            // set the uuid
+            Field uuid = clazz.getDeclaredField("uuid");
+            uuid.setAccessible(true);
+            uuid.set(kintoObject, resultSet.getString("uuid"));
+            // set the kinto id
+            Field kintoid = clazz.getDeclaredField("kintoID");
+            kintoid.setAccessible(true);
+            kintoid.set(kintoObject, resultSet.getString("kintoID"));
+            // set the other attributes
+            for (String attributeName : storableAttributes.keySet()) {
+                DataSet dataSet = storableAttributes.get(attributeName);
+                // getAttribute()
+                String attributeJavaTypeString = dataSet.getJavaDataTypeString();
+                Object value = null;
+                switch (attributeJavaTypeString) {
+                    case "boolean": value = resultSet.getBoolean(attributeName); break;
+                    case "int": value = resultSet.getInt(attributeName); break;
+                    case "float": value = resultSet.getFloat(attributeName); break;
+                    case "double": value = resultSet.getDouble(attributeName); break;
+                    case "java.time.Instant": value = Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime()); break;
+                    case "java.lang.String": value = resultSet.getString(attributeName); break;
+                }
+                // set value to attribute
+                if (value != null) {
+                    Field attribute = kintoObject.getClass().getDeclaredField(attributeName);
+                    attribute.setAccessible(true);
+                    attribute.set(kintoObject, value);
+                }
+            }
+        } catch (NoSuchMethodException exception) {
+            // constructor not found
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+        } catch (NoSuchFieldException exception) {
+            // field not found
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+        } catch (InvocationTargetException e) {
+            // object creation
+            e.printStackTrace();
+        } catch (InstantiationException exception) {
+            // object creation
+            exception.printStackTrace();
+        } catch (IllegalAccessException e) {
+            // object creation
+            e.printStackTrace();
+        } catch (SQLException exception) {
+            if (loggerIsAvailable) {
+                String errorMessage = "Error while searching for objects in local datastore: "
+                        + exception.getMessage();
+                logger.log(LogEntry.Severity.ERROR, errorMessage);
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+        }
+        return null;
     }
 }

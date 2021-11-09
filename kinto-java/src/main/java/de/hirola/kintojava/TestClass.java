@@ -39,17 +39,22 @@ public class TestClass {
             user1.setVorname("Hans");
             user1.setName("Wurst");
             user1.setMeineKatze(meineKatze);
+            user1.addHund(hund1);
 
             kinto.add(meineKatze);
 
+            kinto.add(hund1);
+
             kinto.add(user1);
 
-            List<KintoObject> list = kinto.findAll(User.class);
+            List<? extends KintoObject> list = kinto.findAll(User.class);
             if (list != null) {
-                Iterator<KintoObject> iterator = list.iterator();
+                Iterator<? extends KintoObject> iterator = list.iterator();
                 while (iterator.hasNext()) {
                     User user = (User) iterator.next();
-                    System.out.println(user.getName());
+                    if (user != null) {
+                        System.out.println(user.getName());
+                    }
                 }
             }
 

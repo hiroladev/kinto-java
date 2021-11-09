@@ -27,35 +27,18 @@ public abstract class KintoObject implements KintoModel {
 
     /**
      *
-     * @return  the kinto record object id
+     * @return the unique uid for the object
      */
-    public String getKintoID() {
-        return this.kintoID;
-    }
-
-    /**
-     *
-     * @param kintoID - the kinto record object id
-     * @throws UnsupportedOperationException - has the object already an id
-     */
-    public void setKintoId(String kintoID) throws UnsupportedOperationException {
-        if (this.kintoID == null) {
-            this.kintoID = kintoID;
-        } else {
-            throw new UnsupportedOperationException("Cant set the kinto id. This object has already an kinto id.");
-        }
-    }
-
     public String getUUID() {
         return uuid;
     }
 
-    public void setUUID(String uuid) {
-        if (this.uuid == null) {
-            this.uuid = uuid;
-        } else {
-            throw new UnsupportedOperationException("Cant set objectUID. This object has already an objectUID.");
-        }
+    /**
+     *
+     * @return  the kinto record object id
+     */
+    public String getKintoID() {
+        return this.kintoID;
     }
 
     @Override

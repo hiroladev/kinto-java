@@ -17,6 +17,10 @@ public class User extends KintoObject {
     @Persisted
     private Katze meineKatze;
 
+    public User() {
+        hunde = new ArrayList<Hund>();
+    }
+
     public String getName() {
         return name;
     }
