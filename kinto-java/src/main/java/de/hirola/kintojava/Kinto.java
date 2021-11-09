@@ -4,6 +4,8 @@ import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
 import de.hirola.kintojava.model.KintoObject;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -133,13 +135,83 @@ public final class Kinto {
 
     }
 
-    public List<KintoObject> findAll(Class<? extends KintoObject> type) {
+    public List<KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
         List<KintoObject> objects = new ArrayList<>();
+        // the collection for the object class
+        KintoCollection kintoObjectClassCollection = null;
+        // create an object list with native attributes
         Iterator<KintoCollection> iterator = collections.stream().iterator();
         while (iterator.hasNext()) {
             KintoCollection collection = iterator.next();
             if (collection.getType().equals(type)) {
-                objects = collection.findAll();
+                try {
+                    objects = collection.findAll();
+                    // save the actual collection
+                    kintoObjectClassCollection = collection;
+                } catch (KintoException exception) {
+                    exception.printStackTrace();
+                }
+            } else {
+                String errorMessage = "Cant' find the collection for the object type "
+                        + type
+                        + ".";
+                throw new KintoException(errorMessage);
+            }
+        }
+        // load 1:1 and 1:m embedded objects
+        if (kintoObjectClassCollection != null) {
+            HashMap<String, DataSet> storableAttributes = kintoObjectClassCollection.getStorableAttributes();
+            for (KintoObject kintoObject : objects) {
+                for (String attributeName : storableAttributes.keySet()) {
+                    try {
+                        DataSet dataSet = storableAttributes.get(attributeName);
+                        // 1:1
+                        if (dataSet.isKintoObject()) {
+                            // 1:1 embedded object
+                            // set the values
+                            // get the uuid from the "empty" embedded object
+                            Class<? extends KintoObject> embeddedObjectClazz = (Class<? extends KintoObject>) dataSet.getAttribute().getType();
+                            Field embeddedObjectAttribute = type.getDeclaredField(attributeName);
+                            KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
+                            // get the uuid from embedded object
+                            String embeddedObjectUUID = embeddedObject.getUUID();
+                            // get the collection for the embedded object
+                            iterator = collections.stream().iterator();
+                            KintoCollection collection = iterator.next();
+                            if (collection.getType().equals(embeddedObjectClazz)) {
+                                try {
+                                    embeddedObject = collection.findByUUID(embeddedObjectUUID);
+                                    if (embeddedObject == null) {
+                                        String errorMessage = "Cant' find the the embedded object with the UUID \'"
+                                                + type
+                                                + ".";
+                                        throw new KintoException(errorMessage);
+                                    }
+                                } catch (KintoException exception) {
+                                    exception.printStackTrace();
+                                }
+                            } else {
+                                String errorMessage = "Cant' find the collection for the embedded object type "
+                                        + type
+                                        + ".";
+                                throw new KintoException(errorMessage);
+                            }
+                        }
+                        // 1:m
+                        if (dataSet.isArray()) {
+
+                        }
+                    } catch (NoSuchFieldException exception) {
+                        if (Global.DEBUG) {
+                            exception.printStackTrace();
+                        }
+                    } catch (IllegalAccessException exception) {
+                        if (Global.DEBUG) {
+                            exception.printStackTrace();
+                        }
+                    }
+                }
+
             }
         }
         return objects;

@@ -97,6 +97,11 @@ class Katze extends KintoObject {
     @Persisted
     private int jahre;
 
+    public Katze() {
+        name = "";
+        jahre = 0;
+    }
+
     public String getName() {
         return name;
     }

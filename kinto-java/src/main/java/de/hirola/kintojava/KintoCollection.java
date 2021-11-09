@@ -25,7 +25,7 @@ public class KintoCollection {
     private final Class<? extends KintoObject> type;
     // storable attributes
     // attribute name, dataset
-    HashMap<String,DataSet> storableAttributes;
+    private HashMap<String,DataSet> storableAttributes;
     // 1:m relations for embedded KintoObject in relation table
     private final HashMap<Field, String> relationTables;
     private boolean loggerIsAvailable;
@@ -75,6 +75,10 @@ public class KintoCollection {
      */
     public String getName() {
         return type.getSimpleName();
+    }
+
+    public HashMap<String, DataSet> getStorableAttributes() {
+        return storableAttributes;
     }
 
     /**
@@ -294,7 +298,7 @@ public class KintoCollection {
         // increment the usn
     }
 
-    public List<KintoObject> findAll() {
+    public List<KintoObject> findAll() throws KintoException {
         ArrayList<KintoObject> objects = new ArrayList<>();
         try {
             StringBuilder sql = new StringBuilder("SELECT * FROM ");
@@ -316,6 +320,57 @@ public class KintoCollection {
             }
         }
         return objects;
+    }
+
+    /**
+     *
+     * @param uuid The UUID of the wanted object.
+     * @return A kinto object with the given UUID or <b>null</b>, if no object with the UUID found.
+     * @throws KintoException
+     */
+    public KintoObject findByUUID(String uuid) throws KintoException {
+        if (uuid == null) {
+            throw new KintoException("Can't search for object with empty uuid.");
+        }
+        try {
+            StringBuilder sql = new StringBuilder("SELECT count(*) as rowcount, * FROM ");
+            sql.append(getName());
+            sql.append(" WHERE uuid='");
+            sql.append(uuid);
+            sql.append("';");
+            Statement statement = localdbConnection.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql.toString());
+            // get the count of rows
+            int countOfResults = resultSet.getInt("rowcount");
+            if (countOfResults == 0) {
+                return null;
+            }
+            if (countOfResults > 1) {
+                String errorMessage = "There are more as one objects with UUID "
+                        + uuid
+                        + "in local datastore. Please check the datastore.";
+                if (loggerIsAvailable) {
+                    logger.log(LogEntry.Severity.ERROR, errorMessage);
+                }
+                if (Global.DEBUG) {
+                    System.out.println(errorMessage);
+                }
+            }
+            while (resultSet.next()) {
+                // create object from this collection
+                return createObjectFromResultSet(resultSet);
+            }
+        } catch (SQLException exception) {
+            if (loggerIsAvailable) {
+                String errorMessage = "Error while searching for objects in local datastore: "
+                        + exception.getMessage();
+                logger.log(LogEntry.Severity.ERROR, errorMessage);
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+        }
+        return null;
     }
 
     public List<KintoObject> findByQuery(KintoQuery query) {
@@ -605,11 +660,12 @@ public class KintoCollection {
         return valueForAttribute;
     }
 
-    private KintoObject createObjectFromResultSet(ResultSet resultSet) {
+    private KintoObject createObjectFromResultSet(ResultSet resultSet) throws KintoException {
         try {
             // create object from local datastore using reflection
             Constructor<? extends KintoObject> constructor = type.getConstructor();
             KintoObject kintoObject = constructor.newInstance();
+            // fields from KintoObject
             Class clazz = kintoObject.getClass().getSuperclass();
             // set the uuid
             Field uuid = clazz.getDeclaredField("uuid");
@@ -622,16 +678,46 @@ public class KintoCollection {
             // set the other attributes
             for (String attributeName : storableAttributes.keySet()) {
                 DataSet dataSet = storableAttributes.get(attributeName);
-                // getAttribute()
-                String attributeJavaTypeString = dataSet.getJavaDataTypeString();
                 Object value = null;
-                switch (attributeJavaTypeString) {
-                    case "boolean": value = resultSet.getBoolean(attributeName); break;
-                    case "int": value = resultSet.getInt(attributeName); break;
-                    case "float": value = resultSet.getFloat(attributeName); break;
-                    case "double": value = resultSet.getDouble(attributeName); break;
-                    case "java.time.Instant": value = Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime()); break;
-                    case "java.lang.String": value = resultSet.getString(attributeName); break;
+                if (dataSet.isKintoObject()) {
+                    // 1:1 embedded object
+                    // create an "empty" object with uuid
+                    String embeddedKintoObjectUUID = resultSet.getString(attributeName);
+                    // create embedded object using reflection
+                    constructor = (Constructor<? extends KintoObject>) dataSet.getAttribute().getType().getConstructor();
+                    KintoObject embeddedKintoObject = constructor.newInstance();
+                    // fields from KintoObject
+                    Field embeddedKintoObjectUUIDField = clazz.getDeclaredField("uuid");
+                    embeddedKintoObjectUUIDField.setAccessible(true);
+                    embeddedKintoObjectUUIDField.set(embeddedKintoObject, embeddedKintoObjectUUID);
+                    // add the embedded object
+                    value = embeddedKintoObject;
+                } else if (dataSet.isArray()) {
+                    // 1:m embedded object(s)
+                    // create "empty" object(s) with uuid
+                } else {
+                    // attributes
+                    String attributeJavaTypeString = dataSet.getJavaDataTypeString();
+                    switch (attributeJavaTypeString) {
+                        case "boolean":
+                            value = resultSet.getBoolean(attributeName);
+                            break;
+                        case "int":
+                            value = resultSet.getInt(attributeName);
+                            break;
+                        case "float":
+                            value = resultSet.getFloat(attributeName);
+                            break;
+                        case "double":
+                            value = resultSet.getDouble(attributeName);
+                            break;
+                        case "java.time.Instant":
+                            value = Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime());
+                            break;
+                        case "java.lang.String":
+                            value = resultSet.getString(attributeName);
+                            break;
+                    }
                 }
                 // set value to attribute
                 if (value != null) {
@@ -640,6 +726,7 @@ public class KintoCollection {
                     attribute.set(kintoObject, value);
                 }
             }
+            return kintoObject;
         } catch (NoSuchMethodException exception) {
             // constructor not found
             if (Global.DEBUG) {

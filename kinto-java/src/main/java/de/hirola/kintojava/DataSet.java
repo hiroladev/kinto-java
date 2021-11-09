@@ -85,7 +85,7 @@ public final class DataSet {
     }
 
     public String getJavaDataTypeString() {
-        return attribute.getType().getSimpleName();
+        return attribute.getType().getName();
     }
 
     public boolean isKintoObject() {
