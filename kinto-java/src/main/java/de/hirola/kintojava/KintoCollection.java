@@ -25,11 +25,11 @@ public class KintoCollection {
     private final Class<? extends KintoObject> type;
     // storable attributes
     // attribute name, dataset
-    private HashMap<String,DataSet> storableAttributes;
+    private final HashMap<String,DataSet> storableAttributes;
     // 1:m relations for embedded KintoObject in relation table
     private final HashMap<Field, String> relationTables;
     private boolean loggerIsAvailable;
-    private boolean isSynced;
+    private final boolean isSynced;
 
     /**
      * Create a collection for objects of class type.
@@ -146,7 +146,7 @@ public class KintoCollection {
                         attributeName = key;
                         DataSet dataSet = storableAttributes.get(attributeName);
                         // get attributes using reflection
-                        Class clazz = kintoObject.getClass();
+                        Class<? extends KintoObject> clazz = kintoObject.getClass();
                         // 1. 1:1 relations
                         if (dataSet.isKintoObject()) {
                             Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
@@ -209,10 +209,10 @@ public class KintoCollection {
                         }
                     }
                 } catch (NoSuchFieldException exception) {
-                    String errorMessage = "Getting value for attribute "
+                    String errorMessage = "Can't get the attribute "
                             + attributeName
-                            + " using reflection failed.";
-                    errorMessage = errorMessage + " - " + exception.getMessage();
+                            + " using reflection: "
+                            + exception.getMessage();
                     if (loggerIsAvailable) {
                         logger.log(LogEntry.Severity.ERROR, errorMessage);
                     }
@@ -223,8 +223,8 @@ public class KintoCollection {
                 } catch (IllegalAccessException exception) {
                     String errorMessage = "Getting value for attribute "
                             + attributeName
-                            + " using reflection failed.";
-                    errorMessage = errorMessage + " - " + exception.getMessage();
+                            + " using reflection failed: "
+                            + exception.getMessage();
                     if (loggerIsAvailable) {
                         logger.log(LogEntry.Severity.ERROR, errorMessage);
                     }
@@ -295,10 +295,6 @@ public class KintoCollection {
         // increment the usn
     }
 
-    public List<KintoObject> get(KintoObject kintoObject) throws KintoException {
-        return null;
-    }
-
     public List<KintoObject> findAll() throws KintoException {
         ArrayList<KintoObject> objects = new ArrayList<>();
         try {
@@ -327,7 +323,7 @@ public class KintoCollection {
      *
      * @param uuid The UUID of the wanted object.
      * @return A kinto object with the given UUID or <b>null</b>, if no object with the UUID found.
-     * @throws KintoException
+     * @throws KintoException if the UUID null, if exists more than one object or a sql error occurred
      */
     public KintoObject findByUUID(String uuid) throws KintoException {
         if (uuid == null) {
@@ -356,6 +352,7 @@ public class KintoCollection {
                 if (Global.DEBUG) {
                     System.out.println(errorMessage);
                 }
+                throw new KintoException(errorMessage);
             }
             while (resultSet.next()) {
                 // create object from this collection
@@ -387,7 +384,6 @@ public class KintoCollection {
             // fields with annotation @Persisted
             Field[] declaredFields = type.getDeclaredFields();
             Iterator<Field> iterator = Arrays.stream(declaredFields).iterator();
-            ArrayList<String> columns = new ArrayList<>();
             while (iterator.hasNext()) {
                 Field attribute = iterator.next();
                 if (attribute.isAnnotationPresent(Persisted.class)) {
@@ -518,10 +514,10 @@ public class KintoCollection {
                 for (Field attribute : relationTables.keySet()) {
                     Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
                     String attributeClassName = arrayListObjectClass.getSimpleName();
-                    String relationTablename = relationTables.get(attribute);
+                    String relationTableName = relationTables.get(attribute);
                     // check if table exists
                     StringBuilder sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
-                    sql.append(relationTablename);
+                    sql.append(relationTableName);
                     sql.append("';");
                     Statement statement = localdbConnection.createStatement();
                     ResultSet resultSet = statement.executeQuery(sql.toString());
@@ -542,7 +538,7 @@ public class KintoCollection {
                     } else {
                         // create table
                         sql = new StringBuilder("CREATE TABLE ");
-                        sql.append(relationTablename);
+                        sql.append(relationTableName);
                         sql.append(" (");
                         // collection type name
                         sql.append(getName().toLowerCase(Locale.ROOT));
@@ -631,9 +627,9 @@ public class KintoCollection {
     }
 
     private String getValueForAttributeAsString(KintoObject kintoObject, String attributeName) throws KintoException {
-        String valueForAttribute = "";
+        String valueForAttribute;
         try {
-            Class clazz = kintoObject.getClass();
+            Class<? extends KintoObject> clazz = kintoObject.getClass();
             DataSet dataSet = storableAttributes.get(attributeName);
             if (dataSet.isKintoObject()) {
                 // return the id of the object
@@ -648,15 +644,29 @@ public class KintoCollection {
                 valueForAttribute = String.valueOf(attributeField.get(kintoObject));
             }
         } catch (NoSuchFieldException exception) {
-            //TODO: Catch
-            exception.printStackTrace();
-        } catch (IllegalAccessException exception) {
+            String errorMessage = " The attribute "
+                    + attributeName
+                    + " does not exist or couldn't determine with reflection: "
+                    + exception.getMessage();
             if (loggerIsAvailable) {
                 logger.log(LogEntry.Severity.ERROR, exception.getMessage());
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
             }
+            throw new KintoException(errorMessage);
+        } catch (IllegalAccessException exception) {
+            String errorMessage = "Error while getting value from attribute "
+                    + attributeName
+                    + " :"
+                    + exception.getMessage();
+            if (loggerIsAvailable) {
+                logger.log(LogEntry.Severity.ERROR, exception.getMessage());
+            }
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(errorMessage);
         }
         return valueForAttribute;
     }
@@ -667,7 +677,10 @@ public class KintoCollection {
             Constructor<? extends KintoObject> constructor = type.getConstructor();
             KintoObject kintoObject = constructor.newInstance();
             // fields from KintoObject
-            Class clazz = kintoObject.getClass().getSuperclass();
+            Class<?> clazz = kintoObject.getClass().getSuperclass();
+            if (clazz != KintoObject.class) {
+                throw new KintoException("The superclass of the object is not KintoObject.");
+            }
             // set the uuid
             Field uuid = clazz.getDeclaredField("uuid");
             uuid.setAccessible(true);
@@ -684,8 +697,12 @@ public class KintoCollection {
                 if (dataSet.isKintoObject()) {
                     // 1:1 embedded object
                     // create an "empty" object with uuid
+                    if (!attribute.getType().isAssignableFrom(KintoObject.class)) {
+                        throw new KintoException("The superclass of the embedded object is not KintoObject.");
+                    }
                     String embeddedKintoObjectUUID = resultSet.getString(attributeName);
                     // create embedded object using reflection
+                    //noinspection unchecked
                     constructor = (Constructor<? extends KintoObject>) attribute.getType().getConstructor();
                     KintoObject embeddedKintoObject = constructor.newInstance();
                     // fields from KintoObject
@@ -695,14 +712,18 @@ public class KintoCollection {
                 } else if (dataSet.isArray()) {
                     // 1:m embedded object(s)
                     // create "empty" object(s) with uuid
+                    if (!attribute.getType().isAssignableFrom(KintoObject.class)) {
+                        throw new KintoException("The superclass of the embedded object is not KintoObject.");
+                    }
                     ArrayList<KintoObject> embeddedObjectList = new ArrayList<>();
                     Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                    //noinspection unchecked
                     constructor = (Constructor<? extends KintoObject>) arrayListObjectClass.getConstructor();
                     // get the uuid from relation table
-                    String relationTablename = relationTables.get(attribute);
+                    String relationTableName = relationTables.get(attribute);
                     // the name of the embedded object column uuid
                     String uuidColumnName = arrayListObjectClass.getSimpleName().toLowerCase(Locale.ROOT) + "uuid";
-                    if (relationTablename == null) {
+                    if (relationTableName == null) {
                         String errorMessage = "Can't find the relation table name of type '"
                                 + attributeName
                                 +"'.";
@@ -711,7 +732,7 @@ public class KintoCollection {
                     StringBuilder sql = new StringBuilder("SELECT ");
                     sql.append(uuidColumnName);
                     sql.append(" FROM ");
-                    sql.append(relationTablename);
+                    sql.append(relationTableName);
                     sql.append(" WHERE ");
                     sql.append(getName().toLowerCase(Locale.ROOT));
                     sql.append("uuid='");
@@ -733,26 +754,15 @@ public class KintoCollection {
                 } else {
                     // attributes
                     String attributeJavaTypeString = dataSet.getJavaDataTypeString();
-                    switch (attributeJavaTypeString) {
-                        case "boolean":
-                            value = resultSet.getBoolean(attributeName);
-                            break;
-                        case "int":
-                            value = resultSet.getInt(attributeName);
-                            break;
-                        case "float":
-                            value = resultSet.getFloat(attributeName);
-                            break;
-                        case "double":
-                            value = resultSet.getDouble(attributeName);
-                            break;
-                        case "java.time.Instant":
-                            value = Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime());
-                            break;
-                        case "java.lang.String":
-                            value = resultSet.getString(attributeName);
-                            break;
-                    }
+                    value = switch (attributeJavaTypeString) {
+                        case "boolean" -> resultSet.getBoolean(attributeName);
+                        case "int" -> resultSet.getInt(attributeName);
+                        case "float" -> resultSet.getFloat(attributeName);
+                        case "double" -> resultSet.getDouble(attributeName);
+                        case "java.time.Instant" -> Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime());
+                        case "java.lang.String" -> resultSet.getString(attributeName);
+                        default -> null;
+                    };
                 }
                 // set value to attribute
                 if (value != null) {
