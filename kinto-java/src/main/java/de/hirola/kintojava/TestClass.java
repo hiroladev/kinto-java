@@ -16,7 +16,7 @@ public class TestClass {
                 .logggingDestination(LoggerConfiguration.LOGGING_DESTINATION.CONSOLE + LoggerConfiguration.LOGGING_DESTINATION.FILE)
                 .build();
         Logger logger = Logger.init(loggerConfiguration);
-        ArrayList<Class<? extends KintoObject>> typeList = new ArrayList<Class<? extends KintoObject>>();
+        ArrayList<Class<? extends KintoObject>> typeList = new ArrayList<>();
         typeList.add(User.class);
         typeList.add(Hund.class);
         typeList.add(Katze.class);
@@ -49,11 +49,18 @@ public class TestClass {
 
             List<? extends KintoObject> list = kinto.findAll(User.class);
             if (list != null) {
-                Iterator<? extends KintoObject> iterator = list.iterator();
-                while (iterator.hasNext()) {
-                    User user = (User) iterator.next();
+                for (KintoObject kintoObject : list) {
+                    User user = (User) kintoObject;
                     if (user != null) {
-                        System.out.println(user.getName());
+                        System.out.println(user.getMeineKatze().getName());
+                        ArrayList<? extends KintoObject> hunde = user.getHunde();
+                        if (hunde != null) {
+                            if (hunde.size() > 0) {
+                                Hund ersterHund = (Hund) hunde.get(0);
+                                System.out.println(ersterHund.getName());
+                            }
+
+                        }
                     }
                 }
             }

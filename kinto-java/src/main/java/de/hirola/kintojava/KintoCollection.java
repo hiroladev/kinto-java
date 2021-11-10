@@ -135,7 +135,7 @@ public class KintoCollection {
                     }
                     loops++;
                 }
-                createRecordSQL.append(valuesString.toString());
+                createRecordSQL.append(valuesString);
                 createRecordSQL.append(");");
                 // building sql insert command for the embedded kinto object of this collection (1:m relations)
                 // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
@@ -178,9 +178,7 @@ public class KintoCollection {
                                 Object arrayAttributeObject = arrayAttribute.get(kintoObject);
                                 if (arrayAttributeObject instanceof ArrayList) {
                                     ArrayList<? extends KintoObject> kintoObjects = (ArrayList<? extends KintoObject>) arrayAttributeObject;
-                                    Iterator<? extends KintoObject> iterator = kintoObjects.iterator();
-                                    while(iterator.hasNext()) {
-                                        KintoObject arrayObject = iterator.next();
+                                    for (KintoObject arrayObject : kintoObjects) {
                                         // all objects in local datastore?
                                         if (isNewRecord(arrayObject)) {
                                             String errorMessage = "The embedded object from type "
@@ -244,9 +242,8 @@ public class KintoCollection {
                     statement.execute(createRecordSQL.toString());
                     // create relation table entries
                     if (createRelationRecordSQLCommands.size() > 0) {
-                        Iterator<String> iterator = createRelationRecordSQLCommands.iterator();
-                        while (iterator.hasNext()) {
-                            statement.execute(iterator.next());
+                        for (String createRelationRecordSQLCommand : createRelationRecordSQLCommands) {
+                            statement.execute(createRelationRecordSQLCommand);
                         }
                     }
                     localdbConnection.commit();
@@ -296,6 +293,10 @@ public class KintoCollection {
         }
         // update in local datastore
         // increment the usn
+    }
+
+    public List<KintoObject> get(KintoObject kintoObject) throws KintoException {
+        return null;
     }
 
     public List<KintoObject> findAll() throws KintoException {
@@ -678,23 +679,57 @@ public class KintoCollection {
             // set the other attributes
             for (String attributeName : storableAttributes.keySet()) {
                 DataSet dataSet = storableAttributes.get(attributeName);
+                Field attribute = dataSet.getAttribute();
                 Object value = null;
                 if (dataSet.isKintoObject()) {
                     // 1:1 embedded object
                     // create an "empty" object with uuid
                     String embeddedKintoObjectUUID = resultSet.getString(attributeName);
                     // create embedded object using reflection
-                    constructor = (Constructor<? extends KintoObject>) dataSet.getAttribute().getType().getConstructor();
+                    constructor = (Constructor<? extends KintoObject>) attribute.getType().getConstructor();
                     KintoObject embeddedKintoObject = constructor.newInstance();
                     // fields from KintoObject
-                    Field embeddedKintoObjectUUIDField = clazz.getDeclaredField("uuid");
-                    embeddedKintoObjectUUIDField.setAccessible(true);
-                    embeddedKintoObjectUUIDField.set(embeddedKintoObject, embeddedKintoObjectUUID);
+                    uuid.set(embeddedKintoObject, embeddedKintoObjectUUID);
                     // add the embedded object
                     value = embeddedKintoObject;
                 } else if (dataSet.isArray()) {
                     // 1:m embedded object(s)
                     // create "empty" object(s) with uuid
+                    ArrayList<KintoObject> embeddedObjectList = new ArrayList<>();
+                    Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                    constructor = (Constructor<? extends KintoObject>) arrayListObjectClass.getConstructor();
+                    // get the uuid from relation table
+                    String relationTablename = relationTables.get(attribute);
+                    // the name of the embedded object column uuid
+                    String uuidColumnName = arrayListObjectClass.getSimpleName().toLowerCase(Locale.ROOT) + "uuid";
+                    if (relationTablename == null) {
+                        String errorMessage = "Can't find the relation table name of type '"
+                                + attributeName
+                                +"'.";
+                        throw new KintoException(errorMessage);
+                    }
+                    StringBuilder sql = new StringBuilder("SELECT ");
+                    sql.append(uuidColumnName);
+                    sql.append(" FROM ");
+                    sql.append(relationTablename);
+                    sql.append(" WHERE ");
+                    sql.append(getName().toLowerCase(Locale.ROOT));
+                    sql.append("uuid='");
+                    sql.append(kintoObject.getUUID());
+                    sql.append("';");
+                    Statement statement = localdbConnection.createStatement();
+                    ResultSet uuidResultSet = statement.executeQuery(sql.toString());
+                    if (uuidResultSet.next()) {
+                        // create an object with uuid
+                        KintoObject arrayListKintoObject = constructor.newInstance();
+                        uuid.set(arrayListKintoObject, uuidResultSet.getString(uuidColumnName));
+                        // add to the list
+                        embeddedObjectList.add(arrayListKintoObject);
+                    }
+                    // add the list of embedded objects to the kinto object
+                    Field arrayListField = kintoObject.getClass().getDeclaredField(attributeName);
+                    arrayListField.setAccessible(true);
+                    arrayListField.set(kintoObject, embeddedObjectList);
                 } else {
                     // attributes
                     String attributeJavaTypeString = dataSet.getJavaDataTypeString();
@@ -721,7 +756,6 @@ public class KintoCollection {
                 }
                 // set value to attribute
                 if (value != null) {
-                    Field attribute = kintoObject.getClass().getDeclaredField(attributeName);
                     attribute.setAccessible(true);
                     attribute.set(kintoObject, value);
                 }

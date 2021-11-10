@@ -18,7 +18,7 @@ public class User extends KintoObject {
     private Katze meineKatze;
 
     public User() {
-        hunde = new ArrayList<Hund>();
+        hunde = new ArrayList<>();
     }
 
     public String getName() {
@@ -73,6 +73,11 @@ class Hund extends KintoObject {
     private String name;
     @Persisted
     private int jahre;
+
+    public Hund() {
+        name = "";
+        jahre = 5;
+    }
 
     public String getName() {
         return name;

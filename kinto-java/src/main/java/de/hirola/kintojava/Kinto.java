@@ -6,6 +6,7 @@ import de.hirola.kintojava.model.KintoObject;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -29,6 +30,209 @@ public final class Kinto {
     private boolean loggerIsAvailable;
     private boolean localdbConnected;
     private boolean syncEnabled;
+
+    /**
+     * Create a singleton instance for local data management and sync.
+     *
+     * @param kintoConfiguration The configuration for local and remote kinto datastore.
+     * @return singleton object for data management
+     */
+    public static Kinto getInstance(KintoConfiguration kintoConfiguration) throws KintoException {
+        if (instance == null) {
+            instance = new Kinto(kintoConfiguration);
+        }
+        return instance;
+    }
+
+    public Connection getlocaldbConnection() {
+        return this.localdbConnection;
+    }
+
+    public void login(Credentials credentials) {
+
+    }
+
+    /**
+     * Add a new object to the local datastore.
+     * If the object exists, it is updated with the new properties.
+     *
+     *
+     * @param object Object to be added to the local datastore.
+     */
+    public void add(KintoObject object) throws KintoException {
+        Iterator<KintoCollection> iterator = collections.stream().iterator();
+        while (iterator.hasNext()) {
+            KintoCollection collection = iterator.next();
+            if (collection.getType().equals(object.getClass())) {
+                collection.addRecord(object);
+            }
+        }
+    }
+
+    public void update(KintoObject object) {
+
+    }
+
+    public void remove(KintoObject object) {
+
+    }
+
+    public List<KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
+        List<KintoObject> objects = new ArrayList<>();
+        // the collection for the object class
+        KintoCollection kintoObjectClassCollection = null;
+        // create an object list with native attributes
+        boolean collectionFound = false;
+        Iterator<KintoCollection> iterator = collections.stream().iterator();
+        while (iterator.hasNext()) {
+            KintoCollection collection = iterator.next();
+            if (collection.getType().equals(type)) {
+                collectionFound = true;
+                try {
+                    objects = collection.findAll();
+                    // save the actual collection
+                    kintoObjectClassCollection = collection;
+                } catch (KintoException exception) {
+                    exception.printStackTrace();
+                }
+            }
+        }
+        if (!collectionFound) {
+            String errorMessage = "Cant' find the collection for the object type "
+                    + type
+                    + ".";
+            throw new KintoException(errorMessage);
+        }
+        // load 1:1 and 1:m embedded objects
+        if (kintoObjectClassCollection != null) {
+            HashMap<String, DataSet> storableAttributes = kintoObjectClassCollection.getStorableAttributes();
+            for (KintoObject kintoObject : objects) {
+                for (String attributeName : storableAttributes.keySet()) {
+                    try {
+                        DataSet dataSet = storableAttributes.get(attributeName);
+                        Field attribute = dataSet.getAttribute();
+                        // 1:1
+                        if (dataSet.isKintoObject()) {
+                            // 1:1 embedded object
+                            // set the values
+                            // get the uuid from the "empty" embedded object
+                            Class<? extends KintoObject> embeddedObjectClazz = (Class<? extends KintoObject>) attribute.getType();
+                            Field embeddedObjectAttribute = type.getDeclaredField(attributeName);
+                            embeddedObjectAttribute.setAccessible(true);
+                            KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
+                            // get the uuid from embedded object
+                            String embeddedObjectUUID = embeddedObject.getUUID();
+                            // get the collection for the embedded object
+                            collectionFound = false;
+                            iterator = collections.stream().iterator();
+                            while (iterator.hasNext()) {
+                                KintoCollection collection = iterator.next();
+                                if (collection.getType().equals(embeddedObjectClazz)) {
+                                    collectionFound = true;
+                                    try {
+                                        embeddedObject = collection.findByUUID(embeddedObjectUUID);
+                                        if (embeddedObject == null) {
+                                            String errorMessage = "Cant' find the the embedded object with the UUID '"
+                                                    + type
+                                                    + "'.";
+                                            throw new KintoException(errorMessage);
+                                        }
+                                        // save the embedded object in kinto object
+                                        embeddedObjectAttribute.set(kintoObject, embeddedObject);
+                                    } catch (KintoException exception) {
+                                        exception.printStackTrace();
+                                    }
+                                }
+                            }
+                            if (!collectionFound) {
+                                String errorMessage = "Cant' find the collection for the embedded object type "
+                                        + type
+                                        + ".";
+                                throw new KintoException(errorMessage);
+                            }
+                        }
+                        if (dataSet.isArray()) {
+                            // 1:m embedded objects
+                            // set the values
+                            // get the uuid from the "empty" embedded objects
+                            Class<?> embeddedObjectClazz = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                            Field embeddedObjectAttribute = type.getDeclaredField(attributeName);
+                            embeddedObjectAttribute.setAccessible(true);
+                            // get the list of the objects
+                            ArrayList<KintoObject> objectArrayList = (ArrayList<KintoObject>) embeddedObjectAttribute.get(kintoObject);
+                            // the list for the objects with all attributes
+                            ArrayList<KintoObject> embeddedObjects = new ArrayList<>();
+                            // get the uuid from embedded objects
+                            for (KintoObject embeddedObject : objectArrayList) {
+                                String embeddedObjectUUID = embeddedObject.getUUID();
+                                // get the collection for the embedded object
+                                collectionFound = false;
+                                iterator = collections.stream().iterator();
+                                while (iterator.hasNext()) {
+                                    KintoCollection collection = iterator.next();
+                                    if (collection.getType().equals(embeddedObjectClazz)) {
+                                        collectionFound = true;
+                                        try {
+                                            embeddedObject = collection.findByUUID(embeddedObjectUUID);
+                                            if (embeddedObject == null) {
+                                                String errorMessage = "Cant' find the the embedded object with the UUID '"
+                                                        + type
+                                                        + "'.";
+                                                throw new KintoException(errorMessage);
+                                            }
+                                            // add to the list of objects with all attributes
+                                            embeddedObjects.add(embeddedObject);
+                                        } catch (KintoException exception) {
+                                            exception.printStackTrace();
+                                        }
+                                    }
+                                }
+                                // save the embedded object in kinto object
+                                embeddedObjectAttribute.set(kintoObject, embeddedObjects);
+                                if (!collectionFound) {
+                                    String errorMessage = "Cant' find the collection for the embedded object type "
+                                            + type
+                                            + ".";
+                                    throw new KintoException(errorMessage);
+                                }
+                            }
+                        }
+                    } catch (NoSuchFieldException exception) {
+                        if (Global.DEBUG) {
+                            exception.printStackTrace();
+                        }
+                    } catch (IllegalAccessException exception) {
+                        if (Global.DEBUG) {
+                            exception.printStackTrace();
+                        }
+                    }
+                }
+
+            }
+        }
+        return objects;
+    }
+
+    // Publish all local data to the server, import remote changes
+    public void sync() {
+
+    }
+
+    public void close() {
+        if (localdbConnected) {
+            try {
+                this.localdbConnection.close();
+            } catch (SQLException exception) {
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+            }
+        }
+    }
+
+    public boolean syncEnabled() {
+        return syncEnabled;
+    }
 
     private Kinto(KintoConfiguration kintoConfiguration) throws KintoException {
         this.kintoConfiguration = kintoConfiguration;
@@ -84,157 +288,4 @@ public final class Kinto {
         }
     }
 
-    // create / check relations (tables)
-    private void manageRelations() {
-
-    }
-    /**
-     * Create a singleton instance for local data management and sync.
-     *
-     * @param kintoConfiguration The configuration for local and remote kinto datastore.
-     * @return singleton object for data management
-     */
-    public static Kinto getInstance(KintoConfiguration kintoConfiguration) throws KintoException {
-        if (instance == null) {
-            instance = new Kinto(kintoConfiguration);
-        }
-        return instance;
-    }
-
-    public Connection getlocaldbConnection() {
-        return this.localdbConnection;
-    }
-
-    public void login(Credentials credentials) {
-
-    }
-
-    /**
-     * Add a new object to the local datastore.
-     * If the object exists, it is updated with the new properties.
-     *
-     *
-     * @param object Object to be added to the local datastore.
-     * @return The unique id for the object.
-     */
-    public void add(KintoObject object) throws KintoException {
-        Iterator<KintoCollection> iterator = collections.stream().iterator();
-        while (iterator.hasNext()) {
-            KintoCollection collection = iterator.next();
-            if (collection.getType().equals(object.getClass())) {
-                collection.addRecord(object);
-            }
-        }
-    }
-
-    public void update(KintoObject object) {
-
-    }
-
-    public void remove(KintoObject object) {
-
-    }
-
-    public List<KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
-        List<KintoObject> objects = new ArrayList<>();
-        // the collection for the object class
-        KintoCollection kintoObjectClassCollection = null;
-        // create an object list with native attributes
-        Iterator<KintoCollection> iterator = collections.stream().iterator();
-        while (iterator.hasNext()) {
-            KintoCollection collection = iterator.next();
-            if (collection.getType().equals(type)) {
-                try {
-                    objects = collection.findAll();
-                    // save the actual collection
-                    kintoObjectClassCollection = collection;
-                } catch (KintoException exception) {
-                    exception.printStackTrace();
-                }
-            } else {
-                String errorMessage = "Cant' find the collection for the object type "
-                        + type
-                        + ".";
-                throw new KintoException(errorMessage);
-            }
-        }
-        // load 1:1 and 1:m embedded objects
-        if (kintoObjectClassCollection != null) {
-            HashMap<String, DataSet> storableAttributes = kintoObjectClassCollection.getStorableAttributes();
-            for (KintoObject kintoObject : objects) {
-                for (String attributeName : storableAttributes.keySet()) {
-                    try {
-                        DataSet dataSet = storableAttributes.get(attributeName);
-                        // 1:1
-                        if (dataSet.isKintoObject()) {
-                            // 1:1 embedded object
-                            // set the values
-                            // get the uuid from the "empty" embedded object
-                            Class<? extends KintoObject> embeddedObjectClazz = (Class<? extends KintoObject>) dataSet.getAttribute().getType();
-                            Field embeddedObjectAttribute = type.getDeclaredField(attributeName);
-                            KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
-                            // get the uuid from embedded object
-                            String embeddedObjectUUID = embeddedObject.getUUID();
-                            // get the collection for the embedded object
-                            iterator = collections.stream().iterator();
-                            KintoCollection collection = iterator.next();
-                            if (collection.getType().equals(embeddedObjectClazz)) {
-                                try {
-                                    embeddedObject = collection.findByUUID(embeddedObjectUUID);
-                                    if (embeddedObject == null) {
-                                        String errorMessage = "Cant' find the the embedded object with the UUID \'"
-                                                + type
-                                                + ".";
-                                        throw new KintoException(errorMessage);
-                                    }
-                                } catch (KintoException exception) {
-                                    exception.printStackTrace();
-                                }
-                            } else {
-                                String errorMessage = "Cant' find the collection for the embedded object type "
-                                        + type
-                                        + ".";
-                                throw new KintoException(errorMessage);
-                            }
-                        }
-                        // 1:m
-                        if (dataSet.isArray()) {
-
-                        }
-                    } catch (NoSuchFieldException exception) {
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                    } catch (IllegalAccessException exception) {
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                    }
-                }
-
-            }
-        }
-        return objects;
-    }
-
-    // Publish all local data to the server, import remote changes
-    public void sync() {
-
-    }
-
-    public void close() {
-        if (localdbConnected) {
-            try {
-                this.localdbConnection.close();
-            } catch (SQLException exception) {
-                if (Global.DEBUG) {
-                    exception.printStackTrace();
-                }
-            }
-        }
-    }
-
-    public boolean syncEnabled() {
-        return syncEnabled;
-    }
 }
