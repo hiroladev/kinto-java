@@ -12,3 +12,5 @@ Objects from type KintoObject
 Collection: Reflection - Columns speichern!
 
 SQL keywords for attributes, e..g. alter
+
+https://github.com/xerial/sqlite-jdbc

@@ -697,7 +697,7 @@ public class KintoCollection {
                 if (dataSet.isKintoObject()) {
                     // 1:1 embedded object
                     // create an "empty" object with uuid
-                    if (!attribute.getType().isAssignableFrom(KintoObject.class)) {
+                    if (!KintoObject.class.isAssignableFrom(attribute.getType())) {
                         throw new KintoException("The superclass of the embedded object is not KintoObject.");
                     }
                     String embeddedKintoObjectUUID = resultSet.getString(attributeName);
@@ -712,11 +712,11 @@ public class KintoCollection {
                 } else if (dataSet.isArray()) {
                     // 1:m embedded object(s)
                     // create "empty" object(s) with uuid
-                    if (!attribute.getType().isAssignableFrom(KintoObject.class)) {
-                        throw new KintoException("The superclass of the embedded object is not KintoObject.");
-                    }
                     ArrayList<KintoObject> embeddedObjectList = new ArrayList<>();
                     Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                    if (!KintoObject.class.isAssignableFrom(arrayListObjectClass)) {
+                        throw new KintoException("The superclass of the embedded object is not KintoObject.");
+                    }
                     //noinspection unchecked
                     constructor = (Constructor<? extends KintoObject>) arrayListObjectClass.getConstructor();
                     // get the uuid from relation table
