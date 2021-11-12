@@ -53,28 +53,34 @@ public final class Kinto {
     }
 
     /**
-     * Add a new object to the local datastore.
-     * If the object exists, it is updated with the new properties.
+     * Add a new kintoObject to the local datastore.
+     * If the kintoObject exists, it is updated with the new properties.
      *
      *
-     * @param object Object to be added to the local datastore.
+     * @param kintoObject Object to be added to the local datastore.
      */
-    public void add(KintoObject object) throws KintoException {
+    public void add(KintoObject kintoObject) throws KintoException {
         Iterator<KintoCollection> iterator = collections.stream().iterator();
         while (iterator.hasNext()) {
             KintoCollection collection = iterator.next();
-            if (collection.getType().equals(object.getClass())) {
-                collection.addRecord(object);
+            if (collection.getType().equals(kintoObject.getClass())) {
+                collection.addRecord(kintoObject);
             }
         }
     }
 
-    public void update(KintoObject object) {
+    public void update(KintoObject kintoObject) throws KintoException{
 
     }
 
-    public void remove(KintoObject object) {
-
+    public void remove(KintoObject kintoObject) throws KintoException{
+        Iterator<KintoCollection> iterator = collections.stream().iterator();
+        while (iterator.hasNext()) {
+            KintoCollection collection = iterator.next();
+            if (collection.getType().equals(kintoObject.getClass())) {
+                collection.removeRecord(kintoObject);
+            }
+        }
     }
 
     public List<KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {

@@ -65,6 +65,8 @@ public class TestClass {
                 }
             }
 
+            kinto.remove(user1);
+
         } catch (KintoException exception) {
             exception.printStackTrace();
         }
