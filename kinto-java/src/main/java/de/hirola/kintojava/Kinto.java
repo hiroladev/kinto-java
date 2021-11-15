@@ -2,9 +2,9 @@ package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.logger.Logger;
+import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.sql.Connection;
@@ -60,6 +60,9 @@ public final class Kinto {
      * @param kintoObject Object to be added to the local datastore.
      */
     public void add(KintoObject kintoObject) throws KintoException {
+        if (kintoObject == null) {
+            throw new KintoException("Can't add a null object.");
+        }
         Iterator<KintoCollection> iterator = collections.stream().iterator();
         while (iterator.hasNext()) {
             KintoCollection collection = iterator.next();
@@ -70,10 +73,25 @@ public final class Kinto {
     }
 
     public void update(KintoObject kintoObject) throws KintoException{
-
+        if (kintoObject == null) {
+            throw new KintoException("Can't update a null object.");
+        }
+       Iterator<KintoCollection> iterator = collections.stream().iterator();
+        while (iterator.hasNext()) {
+            KintoCollection collection = iterator.next();
+            if (collection.getType().equals(kintoObject.getClass())) {
+                collection.updateRecord(kintoObject);
+            }
+        }
     }
 
     public void remove(KintoObject kintoObject) throws KintoException{
+        if (kintoObject == null) {
+            throw new KintoException("Can't remove a null object.");
+        }
+        if (kintoObject.isUseInRelation()) {
+            throw new KintoException("Can't remove the object. It's used in an other object. Please update the other object before.");
+        }
         Iterator<KintoCollection> iterator = collections.stream().iterator();
         while (iterator.hasNext()) {
             KintoCollection collection = iterator.next();

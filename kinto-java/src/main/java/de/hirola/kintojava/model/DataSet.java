@@ -1,6 +1,7 @@
-package de.hirola.kintojava;
+package de.hirola.kintojava.model;
 
-import de.hirola.kintojava.model.KintoObject;
+import de.hirola.kintojava.Global;
+import de.hirola.kintojava.KintoException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -26,14 +27,14 @@ public final class DataSet {
 
     public static final String RELATION_DATA_MAPPING_STRING = "RELATION";
 
-    private Field attribute;
+    private final Field attribute;
     private String sqlDataTypeString;
     private Class<? extends KintoObject> arrayType;
     private boolean isKintoObject;
     private boolean isArray;
 
     // SQLite uses a more general dynamic type system
-    private Map<String,String> DATA_MAPPINGS = Map.of(
+    private final Map<String,String> DATA_MAPPINGS = Map.of(
             "java.lang.String","TEXT",
             "boolean","NUMERIC",
             "int","INTEGER",
@@ -78,6 +79,45 @@ public final class DataSet {
 
     public Field getAttribute() {
         return attribute;
+    }
+
+    public String getValueAsString(KintoObject forKintoObject) throws KintoException {
+        String valueForAttribute;
+        String attributeName = attribute.getName();
+        try {
+            Class<? extends KintoObject> clazz = forKintoObject.getClass();
+            if (isKintoObject) {
+                // return the id of the object
+                Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
+                embeddedObjectAttribute.setAccessible(true);
+                KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(forKintoObject);
+                valueForAttribute = embeddedObject.getUUID();
+            } else {
+                // return value for simple data type
+                Field attributeField = clazz.getDeclaredField(attributeName);
+                attributeField.setAccessible(true);
+                valueForAttribute = String.valueOf(attributeField.get(forKintoObject));
+            }
+        } catch (NoSuchFieldException exception) {
+            String errorMessage = " The attribute "
+                    + attributeName
+                    + " does not exist or couldn't determine with reflection: "
+                    + exception.getMessage();
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(errorMessage);
+        } catch (IllegalAccessException exception) {
+            String errorMessage = "Error while getting value from attribute "
+                    + attributeName
+                    + " :"
+                    + exception.getMessage();
+            if (Global.DEBUG) {
+                exception.printStackTrace();
+            }
+            throw new KintoException(errorMessage);
+        }
+        return valueForAttribute;
     }
 
     public String getSqlDataTypeString() {

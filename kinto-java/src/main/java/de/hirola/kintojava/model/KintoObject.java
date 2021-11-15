@@ -17,11 +17,14 @@ public abstract class KintoObject implements KintoModel {
     private String kintoID;
     // the local (sqlite) id
     private String uuid;
+    // to prevent inconsistent datastore
+    private boolean isUseInRelation;
     private long lastModified;
 
     protected KintoObject() {
         kintoID = null;
         uuid = UUID.randomUUID().toString().replace("-", "").toUpperCase();
+        isUseInRelation = false;
         lastModified = 0;
     }
 
@@ -39,6 +42,14 @@ public abstract class KintoObject implements KintoModel {
      */
     public String getKintoID() {
         return this.kintoID;
+    }
+
+    /**
+     *
+     * @return <b>true</b>, if the object used in other kinto objects
+     */
+    public boolean isUseInRelation() {
+        return isUseInRelation;
     }
 
     @Override
