@@ -133,5 +133,23 @@ You can find a sample in package de.hirola.kintojava.bookstore.StoreTest.
 
   // add the customer to local datastore
   kinto.add(customer1);
+  
+  // create a book
+  Book book1 = new Book();
+  book1.setIsbn("1-1-1-1-1");
+  book1.setTitle("The forrest");
+  book1.setPrice(19.00);
+  // attribute without saving in local datastore
+  book1.setNumberInStock(100);
+
+  // add the book to local datastore
+  kinto.add(book1);
+
+  // add book to the store
+  myBookStore.addBook(book1);
+
+  // update store
+  kinto.update(myBookStore);
+
 ```    
 
