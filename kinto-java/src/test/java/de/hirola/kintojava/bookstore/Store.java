@@ -13,11 +13,15 @@ public class Store extends KintoObject {
     // 1:m relations - many customers
     @Persisted
     private ArrayList<Customer> customers;
+    // 1:m relations - many books
+    @Persisted
+    private ArrayList<Book> books;
 
     // we need a constructor for reflection
     public Store() {
         name = "My Shop";
         customers = new ArrayList<>();
+        books = new ArrayList<>();
     }
 
     public String getName() {
@@ -36,6 +40,14 @@ public class Store extends KintoObject {
         if (customer != null) {
             if (!customers.contains(customer)) {
                 customers.add(customer);
+            }
+        }
+    }
+
+    public void addBook(Book book) {
+        if (book != null) {
+            if (!books.contains(book)) {
+                books.add(book);
             }
         }
     }

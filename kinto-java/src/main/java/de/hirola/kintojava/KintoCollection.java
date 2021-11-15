@@ -102,10 +102,8 @@ public class KintoCollection {
                 createRecordSQL.append(getName());
                 // attributes = columns
                 // build a map with attribute and value
-                createRecordSQL.append(" (uuid, kintoid, usn, ");
+                createRecordSQL.append(" (uuid, kintoid, usn");
                 // all attributes -> columns
-                int loops = 1;
-                int size = storableAttributes.size();
                 // attributes and values in same order!
                 StringBuilder valuesString = new StringBuilder(") VALUES(");
                 //  primary key from uuid
@@ -113,7 +111,7 @@ public class KintoCollection {
                 valuesString.append(kintoObject.getUUID());
                 // kinto record id later from sync
                 // usn = 0 on insert
-                valuesString.append("','', 0, ");
+                valuesString.append("','', 0");
                 for (String attributeName : storableAttributes.keySet()) {
                     DataSet dataSet = storableAttributes.get(attributeName);
                     if (dataSet == null) {
@@ -125,16 +123,13 @@ public class KintoCollection {
                     String sqlDataTypeString = dataSet.getSqlDataTypeString();
                     // 1:m relations in extra tables
                     if (!sqlDataTypeString.equalsIgnoreCase(DataSet.RELATION_DATA_MAPPING_STRING)) {
+                        createRecordSQL.append(" ,");
+                        valuesString.append(" ,");
                         createRecordSQL.append(attributeName);
                         valuesString.append("'");
                         valuesString.append(dataSet.getValueAsString(kintoObject));
                         valuesString.append("'");
-                        if (loops < size) {
-                            createRecordSQL.append(" ,");
-                            valuesString.append(" ,");
-                        }
                     }
-                    loops++;
                 }
                 createRecordSQL.append(valuesString);
                 createRecordSQL.append(");");
@@ -354,39 +349,55 @@ public class KintoCollection {
                                 arrayAttribute.setAccessible(true);
                                 Object arrayAttributeObject = arrayAttribute.get(kintoObject);
                                 ArrayList<String> uuids = new ArrayList<>();
+                                // build sql insert command for relation table
+                                StringBuilder insertIntoRelationSQL = new StringBuilder("INSERT INTO ");
+                                insertIntoRelationSQL.append(relationTable);
+
                                 // build sql delete command for relation table
-                                StringBuilder sql = new StringBuilder("DELETE FROM ");
+                                StringBuilder removeFromRelationSQL = new StringBuilder("DELETE FROM ");
                                 // the name of the relation table
-                                sql.append(relationTable);
-                                sql.append(" WHERE ");
+                                removeFromRelationSQL.append(relationTable);
+                                removeFromRelationSQL.append(" WHERE ");
                                 // all uuid from objects in list
-                                sql.append(arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT));
-                                sql.append("uuid NOT IN ('");
+                                removeFromRelationSQL.append(arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT));
+                                removeFromRelationSQL.append("uuid NOT IN ('");
                                 if (arrayAttributeObject instanceof ArrayList) {
                                     ArrayList<? extends KintoObject> kintoObjects = (ArrayList<? extends KintoObject>) arrayAttributeObject;
-                                    int objectListLoop = 1;
                                     int objectListSize = kintoObjects.size();
                                     if (objectListSize == 0) {
                                         // no objects removed
-                                        sql.append("';");
+                                        removeFromRelationSQL.append("';");
                                     } else {
                                         for (KintoObject arrayObject : kintoObjects) {
                                             // remove all uuid (objects) from relation table, there not in list
-                                            sql.append(kintoObject.getUUID());
-                                            sql.append("'");
-                                            if (objectListLoop < objectListSize) {
-                                                sql.append(",");
+                                            removeFromRelationSQL.append(kintoObject.getUUID());
+                                            removeFromRelationSQL.append("'");
+                                            if (objectListSize > 1) {
+                                                removeFromRelationSQL.append(",");
                                             }
-                                            objectListLoop++;
+                                            objectListSize--;
                                         }
                                     }
-                                    sql.append(";");
+                                    removeFromRelationSQL.append(");");
                                     try {
-                                        statement.execute(sql.toString());
+                                        // remove all unused entries from relation table
+                                        statement.execute(removeFromRelationSQL.toString());
+                                        // add new entries to relation table
+
                                     } catch (SQLException exception) {
+                                        localdbConnection.rollback();
                                         String errorMessage = "Error occurred while removing relation entries from local datastore: "
                                                 + exception.getMessage();
                                         throw new KintoException(errorMessage);
+                                    } finally {
+                                        try {
+                                            // using no transactions again
+                                            localdbConnection.setAutoCommit(true);
+                                        } catch (SQLException exception) {
+                                            if (Global.DEBUG) {
+                                                exception.printStackTrace();
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -668,7 +679,7 @@ public class KintoCollection {
                 }
                 throw new KintoException(errorMessage);
             }
-            while (resultSet.next()) {
+            if (resultSet.next()) {
                 // create object from this collection
                 return createObjectFromResultSet(resultSet);
             }
@@ -776,10 +787,8 @@ public class KintoCollection {
                 //  "meta" data
                 sql.append("(uuid TEXT PRIMARY KEY, kintoid TEXT, usn INT");
                 // object attributes
-                int loops = 1;
                 int size = storableAttributes.size();
                 if (size > 0) {
-                    sql.append(", ");
                     for (String attributeName : storableAttributes.keySet()) {
                         DataSet dataSet = storableAttributes.get(attributeName);
                         if (dataSet == null) {
@@ -791,15 +800,11 @@ public class KintoCollection {
                         String sqlDataTypeString = dataSet.getSqlDataTypeString();
                         // 1:m relations in extra tables
                         if (!sqlDataTypeString.equalsIgnoreCase(DataSet.RELATION_DATA_MAPPING_STRING)) {
+                            sql.append(", ");
                             sql.append(attributeName);
                             sql.append(" ");
                             sql.append(sqlDataTypeString);
-                            if (loops < size) {
-                                sql.append(", ");
-
-                            }
                         }
-                        loops++;
                     }
                 }
                 sql.append(");");

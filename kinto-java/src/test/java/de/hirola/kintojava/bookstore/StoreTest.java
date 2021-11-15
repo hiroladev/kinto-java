@@ -50,6 +50,41 @@ public class StoreTest {
             kinto.add(address1);
             kinto.add(address2);
 
+            // create a customer
+            Customer customer1 = new Customer();
+            customer1.setFirstName("Rick");
+            customer1.setLastName("Morris");
+            // add a saved kinto object to the customer (1:1 relation)
+            customer1.setAddress(address1);
+
+            // add the customer to local datastore
+            kinto.add(customer1);
+
+            // create a store
+            Store myBookStore = new Store();
+            myBookStore.setName("Best Books Store");
+            // add a customer to the store
+            myBookStore.addCustomer(customer1);
+
+            // add the store to local datastore
+            kinto.add(myBookStore);
+
+            // create a book
+            Book book1 = new Book();
+            book1.setIsbn("1-1-1-1-1");
+            book1.setTitle("The forrest");
+            book1.setPrice(19.00);
+            book1.setNumberInStock(100);
+
+            // add the book to local datastore
+            kinto.add(book1);
+
+            // add book to the store
+            myBookStore.addBook(book1);
+
+            // update store
+            kinto.update(myBookStore);
+
         } catch (KintoException exception) {
             exception.printStackTrace();
         }
