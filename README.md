@@ -111,6 +111,7 @@ You can find a sample in package de.hirola.kintojava.bookstore.StoreTest.
 
     } catch (KintoException exception) {
         exception.printStackTrace();
+    }
 }
         ```    
 
