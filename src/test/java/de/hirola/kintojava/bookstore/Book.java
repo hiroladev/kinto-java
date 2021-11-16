@@ -4,7 +4,6 @@ import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
 
 import java.util.Objects;
-import java.util.UUID;
 
 public class Book extends KintoObject {
 
