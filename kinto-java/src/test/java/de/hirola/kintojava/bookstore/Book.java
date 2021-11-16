@@ -3,6 +3,7 @@ package de.hirola.kintojava.bookstore;
 import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
 
+import java.util.Objects;
 import java.util.UUID;
 
 public class Book extends KintoObject {
@@ -56,5 +57,23 @@ public class Book extends KintoObject {
 
     public void setNumberInStock(int numberInStock) {
         this.numberInStock = numberInStock;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        if (!super.equals(o)) {
+            return false;
+        }
+        Book book = (Book) o;
+        return isbn.equals(book.isbn);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(super.hashCode(), isbn);
     }
 }

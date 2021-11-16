@@ -82,7 +82,7 @@ public class StoreTest {
             // add book to the store
             myBookStore.addBook(book1);
 
-            // update store
+            // we have a new book, now we update the store
             kinto.update(myBookStore);
 
         } catch (KintoException exception) {
