@@ -27,11 +27,11 @@ public class Book extends KintoObject {
         numberInStock = 0;
     }
 
-    public String getIsbn() {
+    public String getISBN() {
         return isbn;
     }
 
-    public void setIsbn(String isbn) {
+    public void setISBN(String isbn) {
         this.isbn = isbn;
     }
 

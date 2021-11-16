@@ -8,6 +8,7 @@ import de.hirola.kintojava.logger.LoggerConfiguration;
 import de.hirola.kintojava.model.KintoObject;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 
 public class StoreTest {
 
@@ -71,7 +72,7 @@ public class StoreTest {
 
             // create a book
             Book book1 = new Book();
-            book1.setIsbn("1-1-1-1-1");
+            book1.setISBN("1-1-1-1-1");
             book1.setTitle("The forrest");
             book1.setPrice(19.00);
             book1.setNumberInStock(100);
@@ -84,6 +85,19 @@ public class StoreTest {
 
             // we have a new book, now we update the store
             kinto.update(myBookStore);
+
+            // show all books
+            ArrayList<KintoObject> allBooks = kinto.findAll(Book.class);
+            if (allBooks != null) {
+                Iterator<KintoObject> iterator = allBooks.iterator();
+                while(iterator.hasNext()) {
+                    Book book = (Book) iterator.next();
+                    System.out.println(book.getISBN() + " " + book.getTitle());
+                }
+            }
+
+            // remove the local datastore
+            kinto.clearLocalDataStore();
 
         } catch (KintoException exception) {
             exception.printStackTrace();

@@ -40,7 +40,7 @@ public class KintoCollection {
      * @throws KintoException if collection couldn't initialize.
      */
     public KintoCollection(Class<? extends KintoObject> type, Kinto kinto) throws KintoException {
-        this.localdbConnection = kinto.getlocaldbConnection();
+        this.localdbConnection = kinto.getLocalDBConnection();
         this.type = type;
         // TODO: Synchronisation
         this.isSynced = false;
@@ -662,7 +662,7 @@ public class KintoCollection {
         }
     }
 
-    public List<KintoObject> findAll() throws KintoException {
+    public ArrayList<KintoObject> findAll() throws KintoException {
         ArrayList<KintoObject> objects = new ArrayList<>();
         try {
             String sql = "SELECT * FROM " + getName() + ";";
