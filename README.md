@@ -23,83 +23,25 @@ You can find a sample in package de.hirola.kintojava.bookstore.StoreTest.
 ```java
     
     import de.hirola.kintojava.model.*;
-    
-    // create the classes for yor app
-    public class Address extends KintoObject {
-      // attributes to save in local datastore
-      @Persisted
-      private String street;
-      @Persisted
-      private int number;
-      @Persisted
-      private String place;
-      @Persisted
-      private String postalCode;
-
-      // we need a constructor for reflection
-      public Address() {
-          street = "";
-          number = 0;
-          place = "";
-          postalCode = "";
-      }
-      ... some funcs
-    }
-    
-    public class Customer extends KintoObject {
-      // attributes to save in local datastore
-      @Persisted
-      private String customerID;
-      @Persisted
-      private String firstName;
-      @Persisted
-      private String lastName;
-      // 1:1 relation - one address
-      @Persisted
-      private Address address;
-
-      // we need a constructor for reflection
-      public Customer() {
-          customerID = UUID.randomUUID().toString();
-      }
-    }
-    
-    public class Store extends KintoObject {
-      // attributes to save in local datastore
-      @Persisted
-      private String name;
-      // 1:m relations - many customers
-      @Persisted
-      private ArrayList<Customer> customers;
-
-      // we need a constructor for reflection
-      public Store() {
-          name = "My Shop";
-          customers = new ArrayList<>();
-      }
-      ... some funcs
-    }
-    
     // create the library logger
     LoggerConfiguration loggerConfiguration = new LoggerConfiguration.Builder("kintojava-logs")
-          .logggingDestination(LoggerConfiguration.LOGGING_DESTINATION.CONSOLE 
-                              + LoggerConfiguration.LOGGING_DESTINATION.FILE)
-          .build();
+            .logggingDestination(LoggerConfiguration.LOGGING_DESTINATION.CONSOLE 
+            + LoggerConfiguration.LOGGING_DESTINATION.FILE)
+            .build();
     Logger logger = Logger.init(loggerConfiguration);
-    
+
     // add all types for managing by kinto java
     ArrayList<Class<? extends KintoObject>> typeList = new ArrayList<>();
     typeList.add(Address.class);
     typeList.add(Book.class);
     typeList.add(Customer.class);
     typeList.add(Store.class);
-    
+
     try {
         // create a kinto java configuration
         KintoConfiguration configuration = new KintoConfiguration.Builder("StoreTest")
                 .objectTypes(typeList)
                 .build();
-                
         // create the kinto java instance
         Kinto kinto = Kinto.getInstance(configuration);
 
@@ -119,37 +61,56 @@ You can find a sample in package de.hirola.kintojava.bookstore.StoreTest.
         kinto.add(address1);
         kinto.add(address2);
 
-      } catch (KintoException exception) {
-          exception.printStackTrace();
-      }
-  }
-  
-  // create a customer
-  Customer customer1 = new Customer();
-  customer1.setFirstName("Rick");
-  customer1.setLastName("Morris");
-  // add a saved kinto object to the customer (1:1 relation)
-  customer1.setAddress(address1);
+        // create a customer
+        Customer customer1 = new Customer();
+        customer1.setFirstName("Rick");
+        customer1.setLastName("Morris");
+        // add a saved kinto object to the customer (1:1 relation)
+        customer1.setAddress(address1);
 
-  // add the customer to local datastore
-  kinto.add(customer1);
-  
-  // create a book
-  Book book1 = new Book();
-  book1.setIsbn("1-1-1-1-1");
-  book1.setTitle("The forrest");
-  book1.setPrice(19.00);
-  // attribute without saving in local datastore
-  book1.setNumberInStock(100);
+        // add the customer to local datastore
+        kinto.add(customer1);
 
-  // add the book to local datastore
-  kinto.add(book1);
+        // create a store
+        Store myBookStore = new Store();
+        myBookStore.setName("Best Books Store");
+        // add a customer to the store
+        myBookStore.addCustomer(customer1);
 
-  // add book to the store
-  myBookStore.addBook(book1);
+        // add the store to local datastore
+        kinto.add(myBookStore);
 
-  // update store
-  kinto.update(myBookStore);
+        // create a book
+        Book book1 = new Book();
+        book1.setISBN("1-1-1-1-1");
+        book1.setTitle("The forrest");
+        book1.setPrice(19.00);
+        book1.setNumberInStock(100);
 
-```    
+        // add the book to local datastore
+        kinto.add(book1);
+
+        // add book to the store
+        myBookStore.addBook(book1);
+
+        // we have a new book, now we update the store
+        kinto.update(myBookStore);
+
+        // show all books
+        ArrayList<KintoObject> allBooks = kinto.findAll(Book.class);
+        if (allBooks != null) {
+            Iterator<KintoObject> iterator = allBooks.iterator();
+            while(iterator.hasNext()) {
+                Book book = (Book) iterator.next();
+                System.out.println(book.getISBN() + " " + book.getTitle());
+            }
+        }
+
+        // remove the local datastore
+        kinto.clearLocalDataStore();
+
+    } catch (KintoException exception) {
+        exception.printStackTrace();
+}
+        ```    
 
