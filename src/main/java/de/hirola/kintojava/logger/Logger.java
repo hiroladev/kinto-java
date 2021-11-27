@@ -19,6 +19,54 @@ public class Logger {
     private Path logFilePath;
     private boolean remoteLoggingEnabled;
 
+    public static Logger init(LoggerConfiguration configuration) {
+        if (instance == null) {
+            instance = new Logger(configuration);
+        }
+        return instance;
+    }
+
+    public static Logger getInstance() throws InstantiationException {
+        if (instance == null) {
+            new InstantiationException("Logger not configured. Please initiate with a valid LoggerConfiguration!");
+        }
+        return instance;
+    }
+
+    /**
+     * Logging message to different destinations.
+     *
+     * @param severity: severity of the log message
+     * @param  message: message to log
+     * @see LogEntry
+     */
+    public void log(int severity, String message) {
+
+        LogEntry entry = new LogEntry(severity, message);
+        // determine the log destination
+        switch (configuration.getLogggingDestination()) {
+
+            case LoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
+                this.out(entry);
+            // first all out to console ...
+            default:
+                this.out(entry);
+        }
+    }
+
+    /**
+     * Sends a feedback for the app.
+     *
+     * @param type: tye of feedback
+     * @param feedback: content of the feedback
+     * @see FeedbackEntry
+     */
+    public void feedback(int type, String feedback) {
+
+       FeedbackEntry entry = new FeedbackEntry(type, feedback);
+
+    }
+
     private Logger(LoggerConfiguration configuration) {
         this.configuration = configuration;
         this.logFilePath = Paths.get(configuration.getLocalLogPath(), "kinto-java.log");
@@ -179,19 +227,28 @@ public class Logger {
         return true;
     }
 
-    private String buildLogEntryString(LogEntry entry) {
+    private byte[] buildLogEntryString(LogEntry entry) {
         Instant logDate = Instant.ofEpochMilli(entry.getTimeStamp());
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
         String entryString = formatter.format(logDate);
-        entryString+= switch (entry.getSeverity()) {
-            case LogEntry.Severity.INFO -> entryString + " - " + "Info: ";
-            case LogEntry.Severity.WARNING -> entryString + " - " + "Warning: ";
-            case LogEntry.Severity.ERROR -> entryString + " - " + "Error: ";
-            case LogEntry.Severity.DEBUG -> entryString + " - " + "Debug: ";
-            default -> entryString + " - " + "Unknown: ";
+        switch (entry.getSeverity()) {
+            case LogEntry.Severity.INFO:
+                entryString.concat(" - " + "Info: ");
+                break;
+            case LogEntry.Severity.WARNING:
+                entryString.concat(" - " + "Warning: ");
+                break;
+            case LogEntry.Severity.ERROR:
+                entryString.concat(" - " + "Error: ");
+                break;
+            case LogEntry.Severity.DEBUG:
+                entryString.concat(" - " + "Debug: ");
+            default :
+                entryString.concat(" - " + "Unknown: ");
         };
-        return entryString + entry.getMessage();
+        entryString.concat(entry.getMessage() + "\n");
 
+        return entryString.getBytes();
     }
 
     //  simple print to console
@@ -201,10 +258,10 @@ public class Logger {
 
     //  logging to file
     private void logToFile(LogEntry entry) {
-        if (this.localLoggingEnabled) {
+        if (localLoggingEnabled) {
             try {
                 if (Files.isWritable(logFilePath)) {
-                    Files.writeString(this.logFilePath, buildLogEntryString(entry) + "\n", StandardOpenOption.APPEND);
+                    Files.write(logFilePath, buildLogEntryString(entry), StandardOpenOption.APPEND);
                 }
             } catch (IOException exception) {
                 if (Global.DEBUG) {
@@ -212,53 +269,5 @@ public class Logger {
                 }
             }
         }
-    }
-
-    public static Logger init(LoggerConfiguration configuration) {
-        if (instance == null) {
-            instance = new Logger(configuration);
-        }
-        return instance;
-    }
-
-    public static Logger getInstance() throws InstantiationException {
-        if (instance == null) {
-            new InstantiationException("Logger not configured. Please initiate with a valid LoggerConfiguration!");
-        }
-        return instance;
-    }
-
-    /**
-     * Logging message to different destinations.
-     *
-     * @param severity: severity of the log message
-     * @param  message: message to log
-     * @see LogEntry
-     */
-    public void log(int severity, String message) {
-
-        LogEntry entry = new LogEntry(severity, message);
-        // determine the log destination
-        switch (configuration.getLogggingDestination()) {
-
-            case LoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
-                this.out(entry);
-            // first all out to console ...
-            default:
-                this.out(entry);
-        }
-    }
-
-    /**
-     * Sends a feedback for the app.
-     *
-     * @param type: tye of feedback
-     * @param feedback: content of the feedback
-     * @see FeedbackEntry
-     */
-    public void feedback(int type, String feedback) {
-
-       FeedbackEntry entry = new FeedbackEntry(type, feedback);
-
     }
 }

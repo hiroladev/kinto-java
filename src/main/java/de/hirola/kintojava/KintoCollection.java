@@ -16,7 +16,7 @@ import java.util.*;
  * If a collections exists, you must not change the fields of the objects (schema)!
  *
  * @author Michael Schmidt (Hirola)
- * @since 0.1.0
+ * @since 1.1.1
  *
  */
 public class KintoCollection {
@@ -1104,14 +1104,26 @@ public class KintoCollection {
                 } else {
                     // attributes
                     String attributeJavaTypeString = dataSet.getJavaDataTypeString();
-                    value = switch (attributeJavaTypeString) {
-                        case "boolean" -> resultSet.getBoolean(attributeName);
-                        case "int" -> resultSet.getInt(attributeName);
-                        case "float" -> resultSet.getFloat(attributeName);
-                        case "double" -> resultSet.getDouble(attributeName);
-                        case "java.time.Instant" -> Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime());
-                        case "java.lang.String" -> resultSet.getString(attributeName);
-                        default -> null;
+                    switch (attributeJavaTypeString) {
+                        case "boolean":
+                            value = resultSet.getBoolean(attributeName);
+                            break;
+                        case "int":
+                            value = resultSet.getInt(attributeName);
+                            break;
+                        case "float":
+                            value = resultSet.getFloat(attributeName);
+                            break;
+                        case "double":
+                            value = resultSet.getDouble(attributeName);
+                            break;
+                        case "java.time.Instant":
+                            value = Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime());
+                            break;
+                        case "java.lang.String":
+                            value = resultSet.getString(attributeName);
+                            break;
+                        default: value = null;
                     };
                 }
                 // set value to attribute

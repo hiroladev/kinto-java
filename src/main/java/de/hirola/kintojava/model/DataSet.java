@@ -5,6 +5,7 @@ import de.hirola.kintojava.KintoException;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -34,14 +35,18 @@ public final class DataSet {
     private boolean isArray;
 
     // SQLite uses a more general dynamic type system
-    private final Map<String,String> DATA_MAPPINGS = Map.of(
-            "java.lang.String","TEXT",
-            "boolean","NUMERIC",
-            "int","INTEGER",
-            "float","REAL",
-            "double","REAL",
-            "java.time.Instant","INTEGER",
-            "java.util.ArrayList","RELATION");
+    private final Map<String,String> DATA_MAPPINGS;
+
+    {
+        DATA_MAPPINGS = new HashMap<>();
+        DATA_MAPPINGS.put("java.lang.String", "TEXT");
+        DATA_MAPPINGS.put("boolean", "NUMERIC");
+        DATA_MAPPINGS.put("int", "INTEGER");
+        DATA_MAPPINGS.put("float", "REAL");
+        DATA_MAPPINGS.put("double", "REAL");
+        DATA_MAPPINGS.put("java.time.Instant", "INTEGER");
+        DATA_MAPPINGS.put("java.util.ArrayList", "RELATION");
+    }
 
     public DataSet(Field attribute) throws KintoException {
         if (attribute == null) {

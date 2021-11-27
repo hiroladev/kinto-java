@@ -41,10 +41,14 @@ public class LogEntry {
     //  validate the severity parameter
     //  returns 0 if the parameter not valid
     private int validate(int severity) {
-        return switch (severity) {
-            case 0, 1, 2, 3 -> severity;
-            default -> 0;
-        };
+        switch (severity) {
+            case 0:
+            case 1:
+            case 2:
+                return severity;
+            default:
+                return 0;
+        }
     }
 
     /**
