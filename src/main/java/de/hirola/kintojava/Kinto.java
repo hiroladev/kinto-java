@@ -140,7 +140,7 @@ public final class Kinto {
      * @return a (empty) list of kinto objects from type
      * @throws KintoException if an error occurred while searching in local datastore
      */
-    public ArrayList<KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
+    public ArrayList<? extends KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
         if (isLocalDBConnected) {
             ArrayList<KintoObject> objects = new ArrayList<>();
             // the collection for the object class
@@ -356,6 +356,14 @@ public final class Kinto {
 
     }
 
+    public boolean syncEnabled() {
+        return syncEnabled;
+    }
+
+    public boolean isOpen() {
+        return isLocalDBConnected;
+    }
+
     public void close() {
         if (isLocalDBConnected) {
             try {
@@ -367,10 +375,6 @@ public final class Kinto {
                 }
             }
         }
-    }
-
-    public boolean syncEnabled() {
-        return syncEnabled;
     }
 
     private Kinto(KintoConfiguration kintoConfiguration) throws KintoException {
