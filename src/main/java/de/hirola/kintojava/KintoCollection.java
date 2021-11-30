@@ -1,7 +1,7 @@
 package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.LogEntry;
-import de.hirola.kintojava.logger.Logger;
+import de.hirola.kintojava.logger.KintoLogger;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
@@ -21,7 +21,7 @@ import java.util.*;
  */
 public class KintoCollection {
 
-    private Logger logger;
+    private KintoLogger kintoLogger;
     private final Connection localdbConnection;
     private final Class<? extends KintoObject> type;
     // storable attributes
@@ -49,9 +49,9 @@ public class KintoCollection {
         storableAttributes = buildAttributesMap(type);
         // activate logging
         try {
-            this.logger = Logger.getInstance();
+            this.kintoLogger = KintoLogger.getInstance();
             loggerIsAvailable = true;
-        } catch (InstantiationException exception) {
+        } catch (KintoException exception) {
             loggerIsAvailable = false;
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -218,7 +218,7 @@ public class KintoCollection {
                             + " using reflection: "
                             + exception.getMessage();
                     if (loggerIsAvailable) {
-                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                     }
                     if (Global.DEBUG) {
                         exception.printStackTrace();
@@ -230,7 +230,7 @@ public class KintoCollection {
                             + " using reflection failed: "
                             + exception.getMessage();
                     if (loggerIsAvailable) {
-                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                     }
                     if (Global.DEBUG) {
                         exception.printStackTrace();
@@ -264,7 +264,7 @@ public class KintoCollection {
                                     + " : "
                                     + exception.getMessage();
                             if (loggerIsAvailable) {
-                                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             }
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
@@ -278,7 +278,7 @@ public class KintoCollection {
                                     + " using reflection: "
                                     + exception.getMessage();
                             if (loggerIsAvailable) {
-                                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             }
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
@@ -296,7 +296,7 @@ public class KintoCollection {
                         if (loggerIsAvailable) {
                             String errorMessage = "Save and rollback failed, inconsistent data are possible: "
                                     + exception.getMessage();
-                            logger.log(LogEntry.Severity.ERROR, errorMessage);
+                            kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                         }
                         if (Global.DEBUG) {
                             e.printStackTrace();
@@ -305,7 +305,7 @@ public class KintoCollection {
                     String errorMessage = "Saving the object failed: "
                             + exception.getMessage();
                     if (loggerIsAvailable) {
-                        logger.log(LogEntry.Severity.ERROR, errorMessage);
+                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                     }
                     if (Global.DEBUG) {
                         exception.printStackTrace();
@@ -499,7 +499,7 @@ public class KintoCollection {
                     + " using reflection: "
                     + exception.getMessage();
             if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -511,7 +511,7 @@ public class KintoCollection {
                     + " using reflection failed: "
                     + exception.getMessage();
             if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -641,7 +641,7 @@ public class KintoCollection {
                     + " using reflection: "
                     + exception.getMessage();
             if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -653,7 +653,7 @@ public class KintoCollection {
                     + " using reflection failed: "
                     + exception.getMessage();
             if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -662,7 +662,7 @@ public class KintoCollection {
         }
     }
 
-    public ArrayList<KintoObject> findAll() throws KintoException {
+    public List<KintoObject> findAll() throws KintoException {
         ArrayList<KintoObject> objects = new ArrayList<>();
         try {
             String sql = "SELECT * FROM " + getName() + ";";
@@ -675,7 +675,7 @@ public class KintoCollection {
             if (loggerIsAvailable) {
                 String errorMessage = "Error while searching for objects in local datastore: "
                         + exception.getMessage();
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -709,7 +709,7 @@ public class KintoCollection {
                         + uuid
                         + "in local datastore. Please check the datastore.";
                 if (loggerIsAvailable) {
-                    logger.log(LogEntry.Severity.ERROR, errorMessage);
+                    kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                 }
                 if (Global.DEBUG) {
                     System.out.println(errorMessage);
@@ -724,7 +724,7 @@ public class KintoCollection {
             if (loggerIsAvailable) {
                 String errorMessage = "Error while searching for objects in local datastore: "
                         + exception.getMessage();
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -770,7 +770,7 @@ public class KintoCollection {
             if (attributes.isEmpty()) {
                 String message = "Object has no attributes with annotations. Can't create table for collection.";
                 if (loggerIsAvailable) {
-                    logger.log(LogEntry.Severity.ERROR, message);
+                    kintoLogger.log(LogEntry.Severity.ERROR, message);
                 }
                 if (Global.DEBUG) {
                     System.out.println(message);
@@ -780,7 +780,7 @@ public class KintoCollection {
         } catch (Throwable exception) {
             if (loggerIsAvailable) {
                 String message = "Reflection of " + this.type.getName() + " failed, can't create table for collection.";
-                logger.log(LogEntry.Severity.ERROR, message);
+                kintoLogger.log(LogEntry.Severity.ERROR, message);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -806,14 +806,14 @@ public class KintoCollection {
             if (resultSet.next()) {
                 if (Global.DEBUG && loggerIsAvailable) {
                     String message = "KintoCollection of " + type + " exists in local datastore.";
-                    logger.log(LogEntry.Severity.DEBUG, message);
+                    kintoLogger.log(LogEntry.Severity.DEBUG, message);
                 }
                 // TODO Schema-Check
             } else {
                 // create table for collection
                 if (Global.DEBUG && loggerIsAvailable) {
                     String message = "KintoCollection of " + getName() + " does not exists in local datastore.";
-                    logger.log(LogEntry.Severity.DEBUG, message);
+                    kintoLogger.log(LogEntry.Severity.DEBUG, message);
                 }
                 // SQLite store any kind of data you want in any column of any table
                 // build the sql statement for the collection table
@@ -849,7 +849,7 @@ public class KintoCollection {
                     String message = "Create KintoCollection "
                             + getName()
                             + " with sql command: " + sql + ".";
-                    logger.log(LogEntry.Severity.DEBUG, message);
+                    kintoLogger.log(LogEntry.Severity.DEBUG, message);
                 }
                 // create the table in local datastore
                 statement.execute(sql.toString());
@@ -889,7 +889,7 @@ public class KintoCollection {
                                     + getName()
                                     + " and " + attributeClassName
                                     + " exists in local datastore.";
-                            logger.log(LogEntry.Severity.DEBUG, message);
+                            kintoLogger.log(LogEntry.Severity.DEBUG, message);
                         }
                     } else {
                         // create table
@@ -908,7 +908,7 @@ public class KintoCollection {
                                     + " and "
                                     + attributeClassName
                                     + " with sql command: " + sql + ".";
-                            logger.log(LogEntry.Severity.DEBUG, message);
+                            kintoLogger.log(LogEntry.Severity.DEBUG, message);
                         }
                         // create the table in local datastore
                         statement.execute(sql.toString());
@@ -919,7 +919,7 @@ public class KintoCollection {
             String errorMessage = "Error occurred while checking the relation table: "
                     + exception.getMessage();
             if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -976,7 +976,7 @@ public class KintoCollection {
             if (resultSet.next()) {
                 if (Global.DEBUG && loggerIsAvailable) {
                     String message = "Kinto object with id " + kintoObject.getUUID() + " exists in local datastore.";
-                    logger.log(LogEntry.Severity.DEBUG, message);
+                    kintoLogger.log(LogEntry.Severity.DEBUG, message);
                 }
                 return false;
             }
@@ -1177,7 +1177,7 @@ public class KintoCollection {
             String errorMessage = "Error while searching for objects in local datastore: "
                     + exception.getMessage();
             if (loggerIsAvailable) {
-                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
             }
             if (Global.DEBUG) {
                 exception.printStackTrace();

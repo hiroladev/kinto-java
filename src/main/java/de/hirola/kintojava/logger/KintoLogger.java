@@ -1,6 +1,7 @@
 package de.hirola.kintojava.logger;
 
 import de.hirola.kintojava.Global;
+import de.hirola.kintojava.KintoException;
 
 import java.io.File;
 import java.io.IOException;
@@ -11,24 +12,24 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class Logger {
+public class KintoLogger {
 
-    private static Logger instance;
-    private final LoggerConfiguration configuration;
+    private static KintoLogger instance;
+    private final KintoLoggerConfiguration configuration;
     private boolean localLoggingEnabled;
     private Path logFilePath;
     private boolean remoteLoggingEnabled;
 
-    public static Logger init(LoggerConfiguration configuration) {
+    public static KintoLogger init(KintoLoggerConfiguration configuration) {
         if (instance == null) {
-            instance = new Logger(configuration);
+            instance = new KintoLogger(configuration);
         }
         return instance;
     }
 
-    public static Logger getInstance() throws InstantiationException {
+    public static KintoLogger getInstance() throws KintoException {
         if (instance == null) {
-            new InstantiationException("Logger not configured. Please initiate with a valid LoggerConfiguration!");
+            new KintoException("KintoLogger not configured. Please initiate with a valid KintoLoggerConfiguration!");
         }
         return instance;
     }
@@ -46,7 +47,7 @@ public class Logger {
         // determine the log destination
         switch (configuration.getLogggingDestination()) {
 
-            case LoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
                 this.out(entry);
             // first all out to console ...
             default:
@@ -67,7 +68,7 @@ public class Logger {
 
     }
 
-    private Logger(LoggerConfiguration configuration) {
+    private KintoLogger(KintoLoggerConfiguration configuration) {
         this.configuration = configuration;
         this.logFilePath = Paths.get(configuration.getLocalLogPath(), "kinto-java.log");
         if (!initFileLogging()) {

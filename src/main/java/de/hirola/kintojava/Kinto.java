@@ -1,7 +1,7 @@
 package de.hirola.kintojava;
 
+import de.hirola.kintojava.logger.KintoLogger;
 import de.hirola.kintojava.logger.LogEntry;
-import de.hirola.kintojava.logger.Logger;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 
@@ -24,7 +24,7 @@ public final class Kinto {
 
     private static Kinto instance;
     private final KintoConfiguration kintoConfiguration;
-    private Logger logger;
+    private KintoLogger kintoLogger;
     private String bucket;
     private final ArrayList<KintoCollection> collections;
     private Connection localdbConnection;
@@ -140,9 +140,9 @@ public final class Kinto {
      * @return a (empty) list of kinto objects from type
      * @throws KintoException if an error occurred while searching in local datastore
      */
-    public ArrayList<? extends KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
+    public List<? extends KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
         if (isLocalDBConnected) {
-            ArrayList<KintoObject> objects = new ArrayList<>();
+            List<KintoObject> objects = new ArrayList<>();
             // the collection for the object class
             KintoCollection kintoObjectClassCollection = null;
             // create an object list with native attributes
@@ -280,7 +280,7 @@ public final class Kinto {
                                     + " using reflection: "
                                     + exception.getMessage();
                             if (loggerIsAvailable) {
-                                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             }
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
@@ -292,7 +292,7 @@ public final class Kinto {
                                     + " using reflection failed: "
                                     + exception.getMessage();
                             if (loggerIsAvailable) {
-                                logger.log(LogEntry.Severity.ERROR, errorMessage);
+                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             }
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
@@ -387,9 +387,9 @@ public final class Kinto {
 
         // activate logging
         try {
-            this.logger = Logger.getInstance();
+            this.kintoLogger = KintoLogger.getInstance();
             loggerIsAvailable = true;
-        } catch (InstantiationException exception) {
+        } catch (KintoException exception) {
             loggerIsAvailable = false;
             if (Global.DEBUG) {
                 exception.printStackTrace();
@@ -424,7 +424,7 @@ public final class Kinto {
             this.localdbConnection = DriverManager.getConnection(url);
             this.isLocalDBConnected = true;
             if (Global.DEBUG) {
-                this.logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+                this.kintoLogger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
             }
         } catch (ClassNotFoundException exception) {
             // sqlite driver not found

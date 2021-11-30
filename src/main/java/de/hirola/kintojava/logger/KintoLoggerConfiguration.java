@@ -2,7 +2,7 @@ package de.hirola.kintojava.logger;
 
 import java.io.File;
 
-public class LoggerConfiguration {
+public class KintoLoggerConfiguration {
 
     private String bucket;
     private String localLogPath;
@@ -29,7 +29,7 @@ public class LoggerConfiguration {
         public static final int REMOTE = 5;
     }
 
-    public LoggerConfiguration(Builder builder) {
+    public KintoLoggerConfiguration(Builder builder) {
         this.bucket = builder.bucket;
         this.localLogPath = builder.localLogPath;
         this.logggingDestination = builder.logggingDestination;
@@ -92,8 +92,8 @@ public class LoggerConfiguration {
             return this;
         }
 
-        public LoggerConfiguration build() {
-            return new LoggerConfiguration(this);
+        public KintoLoggerConfiguration build() {
+            return new KintoLoggerConfiguration(this);
         }
 
     }
