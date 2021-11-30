@@ -28,7 +28,7 @@ public final class Kinto {
     private String bucket;
     private final ArrayList<KintoCollection> collections;
     private Connection localdbConnection;
-    private boolean loggerIsAvailable;
+    private boolean loggerAvailable;
     private boolean isLocalDBConnected;
     private boolean syncEnabled;
 
@@ -279,7 +279,7 @@ public final class Kinto {
                                     + attributeName
                                     + " using reflection: "
                                     + exception.getMessage();
-                            if (loggerIsAvailable) {
+                            if (loggerAvailable) {
                                 kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             }
                             if (Global.DEBUG) {
@@ -291,7 +291,7 @@ public final class Kinto {
                                     + attributeName
                                     + " using reflection failed: "
                                     + exception.getMessage();
-                            if (loggerIsAvailable) {
+                            if (loggerAvailable) {
                                 kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             }
                             if (Global.DEBUG) {
@@ -317,10 +317,10 @@ public final class Kinto {
                 Statement statement = localdbConnection.createStatement();
                 String sql = new String("PRAGMA writable_schema = 1;");
                 statement.execute(sql);
-                sql = new String("DELETE FROM sqlite_master "
-                        + "WHERE type in ('view', 'table', 'index', 'trigger');");
+                sql = "DELETE FROM sqlite_master "
+                        + "WHERE type in ('view', 'table', 'index', 'trigger');";
                 statement.execute(sql);
-                sql = new String("PRAGMA writable_schema = 0;");
+                sql = "PRAGMA writable_schema = 0;";
                 statement.execute(sql);
                 // commit all commands
                 localdbConnection.commit();
@@ -384,13 +384,12 @@ public final class Kinto {
         if (size == 0) {
             throw new KintoException("There are no managed object types in configuration.");
         }
-
         // activate logging
         try {
-            this.kintoLogger = KintoLogger.getInstance();
-            loggerIsAvailable = true;
+            kintoLogger = KintoLogger.getInstance();
+            loggerAvailable = true;
         } catch (KintoException exception) {
-            loggerIsAvailable = false;
+            loggerAvailable = false;
             if (Global.DEBUG) {
                 exception.printStackTrace();
             }
@@ -421,10 +420,12 @@ public final class Kinto {
             // use sqlite jdbc driver
             Class.forName("org.sqlite.JDBC");
             String url = "jdbc:sqlite:" + kintoConfiguration.getLocaldbPath();
-            this.localdbConnection = DriverManager.getConnection(url);
-            this.isLocalDBConnected = true;
+            localdbConnection = DriverManager.getConnection(url);
+            isLocalDBConnected = true;
             if (Global.DEBUG) {
-                this.kintoLogger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+                if (loggerAvailable) {
+                    kintoLogger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+                }
             }
         } catch (ClassNotFoundException exception) {
             // sqlite driver not found

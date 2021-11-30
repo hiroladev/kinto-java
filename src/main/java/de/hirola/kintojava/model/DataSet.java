@@ -36,7 +36,6 @@ public final class DataSet {
 
     // SQLite uses a more general dynamic type system
     private final Map<String,String> DATA_MAPPINGS;
-
     {
         DATA_MAPPINGS = new HashMap<>();
         DATA_MAPPINGS.put("java.lang.String", "TEXT");
