@@ -35,28 +35,20 @@ public class KintoCollection {
     /**
      * Create a collection for objects of class type.
      *
-     * @param type Type of objects in collections.
-     * @param kinto The kinto object for datastore operations.
+     * @param type type of objects in collections.
+     * @param kinto the kinto object for datastore operations
      * @throws KintoException if collection couldn't initialize.
      */
     public KintoCollection(Class<? extends KintoObject> type, Kinto kinto) throws KintoException {
-        this.localdbConnection = kinto.getLocalDBConnection();
+        localdbConnection = kinto.getLocalDBConnection();
         this.type = type;
         // TODO: Synchronisation
-        this.isSynced = false;
+        isSynced = false;
         // build the list of persistent attributes
         relationTables = new HashMap<>();
         storableAttributes = buildAttributesMap(type);
-        // activate logging
-        try {
-            this.kintoLogger = KintoLogger.getInstance();
-            loggerIsAvailable = true;
-        } catch (KintoException exception) {
-            loggerIsAvailable = false;
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-        }
+        // get logging
+        kintoLogger = kinto.getKintoLogger();
         // check if table for collection exists
         // local and remote
         createLocalDataStoreForCollection();
@@ -158,34 +150,34 @@ public class KintoCollection {
                             }
                         }
                         // 1: m relations
-                        if (dataSet.isArray()) {
+                        if (dataSet.isList()) {
                             // check if relation table exist
-                            Class<? extends KintoObject> arrayObjectType = dataSet.getArrayType();
+                            Class<? extends KintoObject> listObjectType = dataSet.getListType();
                             if (type != null){
                                 // add for all embedded kinto objects an entry in relation table
                                 String relationTable = relationTables.get(dataSet.getAttribute());
                                 if (relationTable == null) {
                                     String errorMessage = "The relation table of "
-                                            + arrayObjectType.getSimpleName()
+                                            + listObjectType.getSimpleName()
                                             + " was not found in configuration.";
                                     throw  new KintoException(errorMessage);
                                 }
-                                Field arrayAttribute = clazz.getDeclaredField(attributeName);
-                                arrayAttribute.setAccessible(true);
-                                Object arrayAttributeObject = arrayAttribute.get(kintoObject);
-                                if (arrayAttributeObject instanceof ArrayList) {
-                                    ArrayList<?> arrayListObjects = (ArrayList<?>) arrayAttributeObject;
-                                    for (Object arrayListObject : arrayListObjects) {
-                                        if (!KintoObject.class.isAssignableFrom(arrayListObject.getClass())) {
+                                Field listAttribute = clazz.getDeclaredField(attributeName);
+                                listAttribute.setAccessible(true);
+                                Object listAttributeObject = listAttribute.get(kintoObject);
+                                if (listAttributeObject instanceof List) {
+                                    List<?> listObjects = (List<?>) listAttributeObject;
+                                    for (Object listObject : listObjects) {
+                                        if (!KintoObject.class.isAssignableFrom(listObject.getClass())) {
                                             String errorMessage = "The object must extends KintoObject. This object extends "
-                                                    + arrayListObject.getClass().getName();
+                                                    + listObject.getClass().getName();
                                             throw new KintoException(errorMessage);
                                         }
-                                        KintoObject arrayListKintoObject = (KintoObject) arrayListObject;
+                                        KintoObject listKintoObject = (KintoObject) listObject;
                                         // all objects in local datastore?
-                                        if (isNewRecord(arrayListKintoObject)) {
+                                        if (isNewRecord(listKintoObject)) {
                                             String errorMessage = "The embedded object from type "
-                                                    + arrayListKintoObject.getClass().getSimpleName()
+                                                    + listKintoObject.getClass().getSimpleName()
                                                     + " must exist in datastore before saving this object.";
                                             throw new KintoException(errorMessage);
                                         }
@@ -197,16 +189,16 @@ public class KintoCollection {
                                                 getName().toLowerCase(Locale.ROOT) +
                                                 "uuid, " +
                                                 // then the attribute type name
-                                                arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT) +
+                                                listObjectType.getSimpleName().toLowerCase(Locale.ROOT) +
                                                 "uuid) VALUES('" +
                                                 kintoObject.getUUID() +
                                                 "', '" +
-                                                arrayListKintoObject.getUUID() +
+                                                listKintoObject.getUUID() +
                                                 "');";
                                         // add to the sql command list
                                         createRelationRecordSQLCommands.add(sql);
                                         // add the object to the "global" list
-                                        useInRelationObjects.add(arrayListKintoObject);
+                                        useInRelationObjects.add(listKintoObject);
                                     }
                                 }
                             }
@@ -359,42 +351,42 @@ public class KintoCollection {
                                     + ".";
                             throw new KintoException(errorMessage);
                         }
-                        if (dataSet.isArray()) {
+                        if (dataSet.isList()) {
                             // remove 1:m relations, the objects are still exists in collections
                             // check if relation table exist
-                            Class<? extends KintoObject> arrayObjectType = dataSet.getArrayType();
+                            Class<? extends KintoObject> listObjectType = dataSet.getListType();
                             if (type != null) {
                                 // add for all embedded kinto objects an entry in relation table
                                 String relationTable = relationTables.get(dataSet.getAttribute());
                                 if (relationTable == null) {
                                     String errorMessage = "The relation table of "
-                                            + arrayObjectType.getSimpleName()
+                                            + listObjectType.getSimpleName()
                                             + " was not found in configuration.";
                                     throw new KintoException(errorMessage);
                                 }
-                                Field arrayAttribute = clazz.getDeclaredField(attributeName);
-                                arrayAttribute.setAccessible(true);
-                                Object arrayAttributeObject = arrayAttribute.get(kintoObject);
+                                Field listAttribute = clazz.getDeclaredField(attributeName);
+                                listAttribute.setAccessible(true);
+                                Object listAttributeObject = listAttribute.get(kintoObject);
                                 // build sql delete command for relation table
                                 StringBuilder deleteSQL = new StringBuilder("DELETE FROM ");
                                 // the name of the relation table
                                 deleteSQL.append(relationTable);
                                 deleteSQL.append(" WHERE ");
                                 // all uuid from objects in list
-                                deleteSQL.append(arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT));
+                                deleteSQL.append(listObjectType.getSimpleName().toLowerCase(Locale.ROOT));
                                 deleteSQL.append("uuid NOT IN (");
                                 // add the attributes (columns) values to sql statements
-                                if (arrayAttributeObject instanceof ArrayList) {
-                                    ArrayList<?> arrayListObjects = (ArrayList<?>) arrayAttributeObject;
-                                    int objectListSize = arrayListObjects.size();
+                                if (listAttributeObject instanceof List) {
+                                    List<?> listObjects = (List<?>) listAttributeObject;
+                                    int objectListSize = listObjects.size();
                                     if (objectListSize > 0) {
-                                        for (Object arrayListObject : arrayListObjects) {
-                                            if (!KintoObject.class.isAssignableFrom(arrayListObject.getClass())) {
+                                        for (Object listObject : listObjects) {
+                                            if (!KintoObject.class.isAssignableFrom(listObject.getClass())) {
                                                 String errorMessage = "The object must extends KintoObject. This object extends "
-                                                        + arrayListObject.getClass().getName();
+                                                        + listObject.getClass().getName();
                                                 throw new KintoException(errorMessage);
                                             }
-                                            KintoObject arrayListKintoObject = (KintoObject) arrayListObject;
+                                            KintoObject listKintoObject = (KintoObject) listObject;
                                             // build sql insert command for relation table - using
                                             // REPLACE INTO table(column_list) VALUES(value_list);
                                             // the name of the relation table
@@ -403,14 +395,14 @@ public class KintoCollection {
                                                     " (" +
                                                     getName().toLowerCase(Locale.ROOT) +
                                                     "uuid, " +
-                                                    arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT) +
+                                                   listObjectType.getSimpleName().toLowerCase(Locale.ROOT) +
                                                     // values
                                                     "uuid) VALUES(" +
                                                     // kinto object uuid
                                                     "'" +
                                                     kintoObject.getUUID() +
                                                     "','" +
-                                                    arrayListKintoObject.getUUID() +
+                                                    listKintoObject.getUUID() +
                                                     "');";
                                             // add to the sql command batch
                                             replaceRelationRecordSQLCommands.add(replaceRelationSQL);
@@ -468,7 +460,7 @@ public class KintoCollection {
                         // remove the object from local datastore
                         statement.execute(updateSQL.toString());
                         // commit all updates to local datastore
-                        // inclusive all delete statements from array attributes
+                        // inclusive all delete statements from list attributes
                         localdbConnection.commit();
                     } catch (SQLException exception) {
                         // rollback all changes
@@ -547,28 +539,28 @@ public class KintoCollection {
                         // get attributes using reflection
                         Class<? extends KintoObject> clazz = kintoObject.getClass();
                         // 1: m relations
-                        if (dataSet.isArray()) {
+                        if (dataSet.isList()) {
                             // check if relation table exist
-                            Class<? extends KintoObject> arrayObjectType = dataSet.getArrayType();
+                            Class<? extends KintoObject> listObjectType = dataSet.getListType();
                             if (type != null){
                                 // add for all embedded kinto objects an entry in relation table
                                 String relationTable = relationTables.get(dataSet.getAttribute());
                                 if (relationTable == null) {
                                     String errorMessage = "The relation table of "
-                                            + arrayObjectType.getSimpleName()
+                                            + listObjectType.getSimpleName()
                                             + " was not found in configuration.";
                                     throw  new KintoException(errorMessage);
                                 }
-                                Field arrayAttribute = clazz.getDeclaredField(attributeName);
-                                arrayAttribute.setAccessible(true);
-                                Object arrayAttributeObject = arrayAttribute.get(kintoObject);
-                                if (arrayAttributeObject instanceof ArrayList) {
+                                Field listAttribute = clazz.getDeclaredField(attributeName);
+                                listAttribute.setAccessible(true);
+                                Object listAttributeObject = listAttribute.get(kintoObject);
+                                if (listAttributeObject instanceof List) {
                                     // remove in relation tables
                                     // use transactions
                                     // build sql select command for relation table
                                     StringBuilder sql = new StringBuilder("SELECT count(*) as rowcount, ");
                                     // all uuid from objects in list
-                                    sql.append(arrayObjectType.getSimpleName().toLowerCase(Locale.ROOT));
+                                    sql.append(listObjectType.getSimpleName().toLowerCase(Locale.ROOT));
                                     sql.append("uuid FROM ");
                                     // the name of the relation table
                                     sql.append(relationTable);
@@ -663,7 +655,7 @@ public class KintoCollection {
     }
 
     public List<KintoObject> findAll() throws KintoException {
-        ArrayList<KintoObject> objects = new ArrayList<>();
+        List<KintoObject> objects = new ArrayList<>();
         try {
             String sql = "SELECT * FROM " + getName() + ";";
             Statement statement = localdbConnection.createStatement();
@@ -752,14 +744,14 @@ public class KintoCollection {
                     DataSet dataSet = new DataSet(attribute);
                     attributes.put(attribute.getName(), dataSet);
                     // create table for "embedded" List of kinto objects (1:m relations)
-                    if (attribute.getType().getSimpleName().equalsIgnoreCase("ArrayList")) {
+                    if (attribute.getType().getSimpleName().equalsIgnoreCase("List")) {
                         // relation table = <name of type>TO<name of type>
                         // get the class name of type in list (https://stackoverflow.com/questions/1942644/get-generic-type-of-java-util-list)
-                        Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
-                        Class<?> attributeSuperClass = arrayListObjectClass.getSuperclass();
-                        if (attributeSuperClass.getSimpleName().equalsIgnoreCase("KintoObject")) {
+                        Class<?> listObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                        Class<?> attributeSuperClass = listObjectClass.getSuperclass();
+                        if (DataSet.hasKintoObjectAsSuperClass(attributeSuperClass)) {
                             String attributeDeclaringClassName = attribute.getDeclaringClass().getSimpleName();
-                            String attributeClassName = arrayListObjectClass.getSimpleName();
+                            String attributeClassName = listObjectClass.getSimpleName();
                             String relationTableName = attributeDeclaringClassName + "TO" + attributeClassName;
                             // add relation information to Map
                             relationTables.put(attribute, relationTableName);
@@ -868,8 +860,8 @@ public class KintoCollection {
         try {
             if (relationTables.size() > 0) {
                 for (Field attribute : relationTables.keySet()) {
-                    Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
-                    String attributeClassName = arrayListObjectClass.getSimpleName();
+                    Class<?> listObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                    String attributeClassName = listObjectClass.getSimpleName();
                     String relationTableName = relationTables.get(attribute);
                     // check if table exists
                     StringBuilder sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
@@ -993,15 +985,15 @@ public class KintoCollection {
             KintoObject kintoObject = constructor.newInstance();
             // fields from KintoObject
             Class<?> clazz = kintoObject.getClass().getSuperclass();
-            if (clazz != KintoObject.class) {
+            if (!DataSet.hasKintoObjectAsSuperClass(clazz)) {
                 throw new KintoException("The superclass of the object is not KintoObject.");
             }
             // set the uuid
-            Field uuid = clazz.getDeclaredField("uuid");
+            Field uuid = KintoObject.class.getDeclaredField("uuid");
             uuid.setAccessible(true);
             uuid.set(kintoObject, resultSet.getString("uuid"));
             // set the kinto id
-            Field kintoid = clazz.getDeclaredField("kintoID");
+            Field kintoid = KintoObject.class.getDeclaredField("kintoID");
             kintoid.setAccessible(true);
             kintoid.set(kintoObject, resultSet.getString("kintoID"));
             // set the other attributes
@@ -1012,7 +1004,7 @@ public class KintoCollection {
                 if (dataSet.isKintoObject()) {
                     // 1:1 embedded object
                     // create an "empty" object with uuid
-                    if (!KintoObject.class.isAssignableFrom(attribute.getType())) {
+                    if (!DataSet.hasKintoObjectAsSuperClass(attribute.getType())) {
                         throw new KintoException("The superclass of the embedded object is not KintoObject.");
                     }
                     String embeddedKintoObjectUUID = resultSet.getString(attributeName);
@@ -1044,20 +1036,20 @@ public class KintoCollection {
                     }
                     // add the embedded object
                     value = embeddedKintoObject;
-                } else if (dataSet.isArray()) {
+                } else if (dataSet.isList()) {
                     // 1:m embedded object(s)
                     // create "empty" object(s) with uuid
                     ArrayList<KintoObject> embeddedObjectList = new ArrayList<>();
-                    Class<?> arrayListObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
-                    if (!KintoObject.class.isAssignableFrom(arrayListObjectClass)) {
+                    Class<?> listObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+                    if (!KintoObject.class.isAssignableFrom(listObjectClass)) {
                         throw new KintoException("The superclass of the embedded object is not KintoObject.");
                     }
                     //noinspection unchecked
-                    constructor = (Constructor<? extends KintoObject>) arrayListObjectClass.getConstructor();
+                    constructor = (Constructor<? extends KintoObject>) listObjectClass.getConstructor();
                     // get the uuid from relation table
                     String relationTableName = relationTables.get(attribute);
                     // the name of the embedded object column uuid
-                    String uuidColumnName = arrayListObjectClass.getSimpleName().toLowerCase(Locale.ROOT) + "uuid";
+                    String uuidColumnName = listObjectClass.getSimpleName().toLowerCase(Locale.ROOT) + "uuid";
                     if (relationTableName == null) {
                         String errorMessage = "Can't find the relation table name of type '"
                                 + attributeName
@@ -1070,15 +1062,15 @@ public class KintoCollection {
                             + kintoObject.getUUID() + "';";
                     Statement statement = localdbConnection.createStatement();
                     ResultSet uuidResultSet = statement.executeQuery(sql);
-                    if (uuidResultSet.next()) {
+                    while (uuidResultSet.next()) {
                         // create an object with uuid
-                        KintoObject arrayListKintoObject = constructor.newInstance();
-                        uuid.set(arrayListKintoObject, uuidResultSet.getString(uuidColumnName));
+                        KintoObject listKintoObject = constructor.newInstance();
+                        uuid.set(listKintoObject, uuidResultSet.getString(uuidColumnName));
                         // set the use in relation flag
                         try {
                             Field attributeField = KintoObject.class.getDeclaredField("isUseInRelation");
                             attributeField.setAccessible(true);
-                            attributeField.set(arrayListKintoObject, true);
+                            attributeField.set(listKintoObject, true);
                         } catch (NoSuchFieldException exception) {
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
@@ -1095,12 +1087,12 @@ public class KintoCollection {
                             throw new KintoException(errorMessage);
                         }
                         // add to the list
-                        embeddedObjectList.add(arrayListKintoObject);
+                        embeddedObjectList.add(listKintoObject);
                     }
                     // add the list of embedded objects to the kinto object
-                    Field arrayListField = kintoObject.getClass().getDeclaredField(attributeName);
-                    arrayListField.setAccessible(true);
-                    arrayListField.set(kintoObject, embeddedObjectList);
+                    Field listField = kintoObject.getClass().getDeclaredField(attributeName);
+                    listField.setAccessible(true);
+                    listField.set(kintoObject, embeddedObjectList);
                 } else {
                     // attributes
                     String attributeJavaTypeString = dataSet.getJavaDataTypeString();
@@ -1123,8 +1115,7 @@ public class KintoCollection {
                         case "java.lang.String":
                             value = resultSet.getString(attributeName);
                             break;
-                        default: value = null;
-                    };
+                    }
                 }
                 // set value to attribute
                 if (value != null) {

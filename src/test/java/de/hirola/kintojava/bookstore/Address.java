@@ -1,9 +1,9 @@
 package de.hirola.kintojava.bookstore;
 
-import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
+import de.hirola.kintojava.model.PersistentObject;
 
-public class Address extends KintoObject {
+public class Address extends PersistentObject {
 
     // attributes to save in local datastore
     @Persisted
@@ -21,6 +21,13 @@ public class Address extends KintoObject {
         number = 0;
         place = "";
         postalCode = "";
+    }
+
+    public Address(String street, int number, String place, String postalCode) {
+        this.street = street;
+        this.number = number;
+        this.place = place;
+        this.postalCode = postalCode;
     }
 
     public String getStreet() {

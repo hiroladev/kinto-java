@@ -130,7 +130,7 @@ public class KintoConfiguration {
 
         public Builder(String bucket) {
             this.bucket = bucket;
-            objectTypes = new ArrayList<Class<? extends KintoObject>>();
+            objectTypes = new ArrayList<>();
             // default server
             kintoServer = "localhost";
             // default port

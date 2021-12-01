@@ -1,35 +1,30 @@
 package de.hirola.kintojava.logger;
 
+import com.sun.org.apache.xml.internal.utils.SystemIDResolver;
 import de.hirola.kintojava.Global;
-import de.hirola.kintojava.KintoException;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 
 public class KintoLogger {
 
     private static KintoLogger instance;
     private final KintoLoggerConfiguration configuration;
-    private boolean localLoggingEnabled;
-    private Path logFilePath;
+    private final boolean localLoggingEnabled;
+    private final Path logFilePath;
     private boolean remoteLoggingEnabled;
 
-    public static KintoLogger init(KintoLoggerConfiguration configuration) {
+    public static KintoLogger getInstance(KintoLoggerConfiguration configuration) {
         if (instance == null) {
             instance = new KintoLogger(configuration);
-        }
-        return instance;
-    }
-
-    public static KintoLogger getInstance() throws KintoException {
-        if (instance == null) {
-            new KintoException("KintoLogger not configured. Please initiate with a valid KintoLoggerConfiguration!");
         }
         return instance;
     }
@@ -46,12 +41,38 @@ public class KintoLogger {
         LogEntry entry = new LogEntry(severity, message);
         // determine the log destination
         switch (configuration.getLogggingDestination()) {
-
             case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
-                this.out(entry);
-            // first all out to console ...
-            default:
-                this.out(entry);
+                logToConsole(entry);
+                break;
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.FILE:
+                if (localLoggingEnabled) {
+                    logToFile(entry);
+                }
+                break;
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
+                logToRemote(entry);
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
+                    KintoLoggerConfiguration.LOGGING_DESTINATION.FILE:
+                logToConsole(entry);
+                logToFile(entry);
+                break;
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
+                    KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
+                logToConsole(entry);
+                logToRemote(entry);
+                break;
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.FILE +
+                    KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
+                logToFile(entry);
+                logToRemote(entry);
+                break;
+            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
+                    KintoLoggerConfiguration.LOGGING_DESTINATION.FILE +
+                    KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
+                logToConsole(entry);
+                logToFile(entry);
+                logToRemote(entry);
+                break;
         }
     }
 
@@ -73,14 +94,42 @@ public class KintoLogger {
         this.logFilePath = Paths.get(configuration.getLocalLogPath(), "kinto-java.log");
         if (!initFileLogging()) {
             System.out.println("Logging to file is disable! Activate debug mode for more information.");
-            this.localLoggingEnabled = false;
+            localLoggingEnabled = false;
         } else {
-            this.localLoggingEnabled = true;
+            localLoggingEnabled = true;
             logToFile(new LogEntry(LogEntry.Severity.INFO,"File-Logging started ..."));
         }
     }
 
-    // check file system permissions, create subdirs and log file, ...
+    //  simple print to console
+    private void logToConsole(LogEntry entry) {
+        System.out.println(buildLogEntryString(entry));
+    }
+
+    //  logging to file
+    private void logToFile(LogEntry entry) {
+        if (localLoggingEnabled) {
+            try {
+                if (Files.isWritable(logFilePath)) {
+                    Files.write(logFilePath,
+                            buildLogEntryString(entry).getBytes(StandardCharsets.UTF_8),
+                            StandardOpenOption.APPEND);
+                }
+            } catch (IOException exception) {
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+            }
+        }
+    }
+
+    // remote logging
+    private void logToRemote(LogEntry entry) {
+        System.out.println("Sorry. Remote logging not available yet:"
+                + entry);
+    }
+
+    // check file system permissions, create subdirectories and log file, ...
     private boolean initFileLogging() {
         // max file size in byte
         int maxFileSize = 1000000;
@@ -172,13 +221,13 @@ public class KintoLogger {
                                 }
                             } else {
                                 if (Global.DEBUG) {
-                                    System.out.println(logFilePath.toString() + " is not writeable! Disable logging to file.");
+                                    System.out.println(logFilePath + " is not writeable! Disable logging to file.");
                                 }
                                 return false;
                             }
                         } else {
                             if (Global.DEBUG) {
-                                System.out.println(logFilePath.toString() + " is a dir! Disable logging to file.");
+                                System.out.println(logFilePath + " is a dir! Disable logging to file.");
                             }
                             return false;
                         }
@@ -228,47 +277,29 @@ public class KintoLogger {
         return true;
     }
 
-    private byte[] buildLogEntryString(LogEntry entry) {
+    private String buildLogEntryString(LogEntry entry) {
         Instant logDate = Instant.ofEpochMilli(entry.getTimeStamp());
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
         String entryString = formatter.format(logDate);
         switch (entry.getSeverity()) {
             case LogEntry.Severity.INFO:
-                entryString.concat(" - " + "Info: ");
+                entryString = entryString.concat(" - " + "Info: ");
                 break;
             case LogEntry.Severity.WARNING:
-                entryString.concat(" - " + "Warning: ");
+                entryString = entryString.concat(" - " + "Warning: ");
                 break;
             case LogEntry.Severity.ERROR:
-                entryString.concat(" - " + "Error: ");
+                entryString = entryString.concat(" - " + "Error: ");
                 break;
             case LogEntry.Severity.DEBUG:
-                entryString.concat(" - " + "Debug: ");
+                entryString = entryString.concat(" - " + "Debug: ");
+                break;
             default :
-                entryString.concat(" - " + "Unknown: ");
-        };
-        entryString.concat(entry.getMessage() + "\n");
-
-        return entryString.getBytes();
-    }
-
-    //  simple print to console
-    private void out(LogEntry entry) {
-        System.out.println(buildLogEntryString(entry));
-    }
-
-    //  logging to file
-    private void logToFile(LogEntry entry) {
-        if (localLoggingEnabled) {
-            try {
-                if (Files.isWritable(logFilePath)) {
-                    Files.write(logFilePath, buildLogEntryString(entry), StandardOpenOption.APPEND);
-                }
-            } catch (IOException exception) {
-                if (Global.DEBUG) {
-                    exception.printStackTrace();
-                }
-            }
+                entryString = entryString.concat(" - " + "Unknown: ");
         }
+        entryString = entryString.concat(entry.getMessage() + "\n");
+
+        return entryString;
     }
+
 }

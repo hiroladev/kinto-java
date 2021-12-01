@@ -1,11 +1,11 @@
 package de.hirola.kintojava.bookstore;
 
-import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
+import de.hirola.kintojava.model.PersistentObject;
 
 import java.util.Objects;
 
-public class Book extends KintoObject {
+public class Book extends PersistentObject {
 
     // attributes to save in local datastore
     @Persisted
@@ -24,6 +24,13 @@ public class Book extends KintoObject {
         title = "The unwritten Book";
         price = 10.99;
         numberInStock = 0;
+    }
+
+    public Book(String isbn, String title, double price, int numberInStock) {
+        this.isbn = isbn;
+        this.title = title;
+        this.price = price;
+        this.numberInStock = numberInStock;
     }
 
     public String getISBN() {

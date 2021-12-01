@@ -1,6 +1,7 @@
 package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.KintoLogger;
+import de.hirola.kintojava.logger.KintoLoggerConfiguration;
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
@@ -24,11 +25,10 @@ public final class Kinto {
 
     private static Kinto instance;
     private final KintoConfiguration kintoConfiguration;
-    private KintoLogger kintoLogger;
+    private final KintoLogger kintoLogger;
     private String bucket;
     private final ArrayList<KintoCollection> collections;
     private Connection localdbConnection;
-    private boolean loggerAvailable;
     private boolean isLocalDBConnected;
     private boolean syncEnabled;
 
@@ -43,6 +43,14 @@ public final class Kinto {
             instance = new Kinto(kintoConfiguration);
         }
         return instance;
+    }
+
+    /**
+     *
+     * @return an active instance of KintoLogger
+     */
+    public KintoLogger getKintoLogger() {
+        return kintoLogger;
     }
 
     /**
@@ -181,7 +189,7 @@ public final class Kinto {
                                 // set the values
                                 // get the uuid from the "empty" embedded object
                                 Class<?> attributeType = attribute.getType();
-                                if (!attributeType.getSuperclass().equals(KintoObject.class)) {
+                                if (!DataSet.hasKintoObjectAsSuperClass(attributeType)) {
                                     String errorMessage = "The object must extends KintoObject. This object extends "
                                             + attributeType.getName();
                                     throw new KintoException(errorMessage);
@@ -222,7 +230,7 @@ public final class Kinto {
                                     throw new KintoException(errorMessage);
                                 }
                             }
-                            if (dataSet.isArray()) {
+                            if (dataSet.isList()) {
                                 // 1:m embedded objects
                                 // set the values
                                 // get the uuid from the "empty" embedded objects
@@ -279,9 +287,7 @@ public final class Kinto {
                                     + attributeName
                                     + " using reflection: "
                                     + exception.getMessage();
-                            if (loggerAvailable) {
-                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                            }
+                            kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
                             }
@@ -291,9 +297,7 @@ public final class Kinto {
                                     + attributeName
                                     + " using reflection failed: "
                                     + exception.getMessage();
-                            if (loggerAvailable) {
-                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                            }
+                            kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
                             }
@@ -315,7 +319,7 @@ public final class Kinto {
                 // use transaction
                 localdbConnection.setAutoCommit(false);
                 Statement statement = localdbConnection.createStatement();
-                String sql = new String("PRAGMA writable_schema = 1;");
+                String sql = "PRAGMA writable_schema = 1;";
                 statement.execute(sql);
                 sql = "DELETE FROM sqlite_master "
                         + "WHERE type in ('view', 'table', 'index', 'trigger');";
@@ -385,15 +389,12 @@ public final class Kinto {
             throw new KintoException("There are no managed object types in configuration.");
         }
         // activate logging
-        try {
-            kintoLogger = KintoLogger.getInstance();
-            loggerAvailable = true;
-        } catch (KintoException exception) {
-            loggerAvailable = false;
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-        }
+        // create the library logger
+        KintoLoggerConfiguration loggerConfiguration = new KintoLoggerConfiguration.Builder("kintojava-logs")
+                .logggingDestination(KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE
+                        + KintoLoggerConfiguration.LOGGING_DESTINATION.FILE)
+                .build();
+        kintoLogger = KintoLogger.getInstance(loggerConfiguration);
         collections = new ArrayList<>(size);
         isLocalDBConnected = false;
         syncEnabled = false;
@@ -423,9 +424,7 @@ public final class Kinto {
             localdbConnection = DriverManager.getConnection(url);
             isLocalDBConnected = true;
             if (Global.DEBUG) {
-                if (loggerAvailable) {
-                    kintoLogger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
-                }
+                kintoLogger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
             }
         } catch (ClassNotFoundException exception) {
             // sqlite driver not found

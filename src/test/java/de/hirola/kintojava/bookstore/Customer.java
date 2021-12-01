@@ -1,12 +1,12 @@
 package de.hirola.kintojava.bookstore;
 
-import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
+import de.hirola.kintojava.model.PersistentObject;
 
 import java.util.Objects;
 import java.util.UUID;
 
-public class Customer extends KintoObject {
+public class Customer extends PersistentObject {
 
     // attributes to save in local datastore
     @Persisted
@@ -22,6 +22,13 @@ public class Customer extends KintoObject {
     // we need a constructor for reflection
     public Customer() {
         customerID = UUID.randomUUID().toString();
+    }
+
+    public Customer(String firstName, String lastName, Address address) {
+        customerID = UUID.randomUUID().toString();
+        this.firstName = firstName;
+        this.lastName = lastName;
+        this.address = address;
     }
 
     public String getCustomerID() {
