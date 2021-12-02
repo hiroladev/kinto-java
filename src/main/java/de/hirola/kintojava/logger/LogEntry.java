@@ -21,7 +21,7 @@ public class LogEntry {
      */
     public static class Severity {
         /**
-         *  A info log entry.
+         *  An info log entry.
          */
         public static final int INFO = 0;
         /**

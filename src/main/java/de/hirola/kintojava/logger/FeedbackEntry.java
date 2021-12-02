@@ -22,7 +22,7 @@ public class FeedbackEntry {
          */
         public static final int INFO = 0;
         /**
-         * A Feedback for a app issue.
+         * A Feedback for an app issue.
          */
         public static final int ISSUE = 1;
         /**

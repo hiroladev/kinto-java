@@ -4,8 +4,8 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * A kind of KintoObject can manipulated by Kinto.
- * Objects can created, updated and deleted.
+ * A kind of KintoObject can manipulate by Kinto.
+ * Objects can create, update and delete.
  *
  * @author Michael Schmidt (Hirola)
  * @since 0.1.0

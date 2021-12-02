@@ -106,10 +106,9 @@ public final class DataSet {
         try {
             Class<? extends KintoObject> clazz = forKintoObject.getClass();
             Field attributeField = clazz.getDeclaredField(attributeName);
+            attributeField.setAccessible(true);
             if (isKintoObject) {
                 // return the id of the object
-                attributeField = clazz.getDeclaredField(attributeName);
-                attributeField.setAccessible(true);
                 KintoObject embeddedObject = (KintoObject) attributeField.get(forKintoObject);
                 valueForAttribute = embeddedObject.getUUID();
             } else if (attributeField.getType().getName().equalsIgnoreCase("java.time.LocalDate")) {
@@ -123,8 +122,6 @@ public final class DataSet {
                 }
             } else {
                 // return value for simple data type
-                attributeField = clazz.getDeclaredField(attributeName);
-                attributeField.setAccessible(true);
                 valueForAttribute = String.valueOf(attributeField.get(forKintoObject));
             }
         } catch (NoSuchFieldException exception) {

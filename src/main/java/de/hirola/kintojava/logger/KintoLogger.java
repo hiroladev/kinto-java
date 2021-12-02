@@ -1,6 +1,5 @@
 package de.hirola.kintojava.logger;
 
-import com.sun.org.apache.xml.internal.utils.SystemIDResolver;
 import de.hirola.kintojava.Global;
 
 import java.io.File;
@@ -12,7 +11,6 @@ import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.Arrays;
 
 public class KintoLogger {
 

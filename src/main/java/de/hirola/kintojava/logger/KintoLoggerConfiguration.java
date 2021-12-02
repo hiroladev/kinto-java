@@ -20,7 +20,7 @@ public class KintoLoggerConfiguration {
          */
         public static final int CONSOLE = 1;
         /**
-         * A Feedback for a app issue.
+         * A Feedback for an app issue.
          */
         public static final int FILE = 3;
         /**

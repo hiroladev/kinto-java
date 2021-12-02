@@ -145,7 +145,7 @@ public final class Kinto {
     /**
      *
      * @param type searching for all kinto objects of this type (class)
-     * @return a (empty) list of kinto objects from type
+     * @return an (empty) list of kinto objects from type
      * @throws KintoException if an error occurred while searching in local datastore
      */
     public List<? extends KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {

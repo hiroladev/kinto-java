@@ -745,14 +745,14 @@ public class KintoCollection {
                     attributes.put(attribute.getName(), dataSet);
                     // create table for "embedded" List of kinto objects (1:m relations)
                     if (attribute.getType().getSimpleName().equalsIgnoreCase("List")) {
-                        // relation table = <name of type>TO<name of type>
+                        // relation table = <name of type>To<name of type>
                         // get the class name of type in list (https://stackoverflow.com/questions/1942644/get-generic-type-of-java-util-list)
                         Class<?> listObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
                         Class<?> attributeSuperClass = listObjectClass.getSuperclass();
                         if (DataSet.hasKintoObjectAsSuperClass(attributeSuperClass)) {
                             String attributeDeclaringClassName = attribute.getDeclaringClass().getSimpleName();
                             String attributeClassName = listObjectClass.getSimpleName();
-                            String relationTableName = attributeDeclaringClassName + "TO" + attributeClassName;
+                            String relationTableName = attributeDeclaringClassName + "To" + attributeClassName;
                             // add relation information to Map
                             relationTables.put(attribute, relationTableName);
                         }
