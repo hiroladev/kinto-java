@@ -12,20 +12,22 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Attribute data set
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
  *
- * <table>
- *     <th>SQL data type</th>
- *     <th>Java data type</th>
- *     <tr><td>TEXT</td><td>String</td>
- *     <tr><td>NUMERIC</td><td>boolean</td>
- *     <tr><td>REAL</td><td>float, double</td></tr>
- *     <tr><td>TEXT</td><td>LocalDate as text in iso format</td>
- * </table>
+ * Attribute data set
+ *  *
+ *  * <table>
+ *  *     <th>SQL data type</th>
+ *  *     <th>Java data type</th>
+ *  *     <tr><td>TEXT</td><td>String</td>
+ *  *     <tr><td>NUMERIC</td><td>boolean</td>
+ *  *     <tr><td>REAL</td><td>float, double</td></tr>
+ *  *     <tr><td>TEXT</td><td>LocalDate as text in iso format</td>
+ *  * </table>
  *
  * @author Michael Schmidt (Hirola)
- * @since 0.1.0
- *
+ * @since 1.1.1
  */
 public final class DataSet {
 

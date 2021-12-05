@@ -12,7 +12,15 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
-public class KintoLogger {
+/**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
+ * @author Michael Schmidt (Hirola)
+ * @since 1.1.1
+ *
+ */
+ public class KintoLogger {
 
     private static KintoLogger instance;
     private final KintoLoggerConfiguration configuration;

@@ -3,6 +3,9 @@ package de.hirola.kintojava.logger;
 import java.time.Instant;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * An object of the class presents an entry in the log datastore.
  */
 public class LogEntry {

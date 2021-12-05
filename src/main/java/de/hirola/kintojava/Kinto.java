@@ -8,13 +8,13 @@ import de.hirola.kintojava.model.KintoObject;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.*;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * The singleton object for data management with sqlite and kinto.
  *
  * @author Michael Schmidt (Hirola)
@@ -27,10 +27,11 @@ public final class Kinto {
     private final KintoConfiguration kintoConfiguration;
     private final KintoLogger kintoLogger;
     private String bucket;
+    private final String appPackageName;
     private final ArrayList<KintoCollection> collections;
-    private Connection localdbConnection;
+    private KintoDataBase dataBase;
     private boolean isLocalDBConnected;
-    private boolean syncEnabled;
+    private final boolean syncEnabled;
 
     /**
      * Create a singleton instance for local data management and sync.
@@ -58,12 +59,11 @@ public final class Kinto {
      * @return a (open) connection to the local datastore
      * @throws KintoException if the connection to local datastore couldn't' created
      */
-    public Connection getLocalDBConnection() throws KintoException {
-        if (localdbConnection == null) {
-            initLocalDB();
-            isLocalDBConnected = true;
+    public KintoDataBase getLocalDBConnection() throws KintoException {
+        if (dataBase == null) {
+            dataBase = KintoDataBase.getInstance(this, appPackageName);
         }
-        return localdbConnection;
+        return dataBase;
     }
 
     public void login(Credentials credentials) {
@@ -313,48 +313,6 @@ public final class Kinto {
         }
     }
 
-    public void clearLocalDataStore() throws KintoException {
-        if (isLocalDBConnected) {
-            try {
-                // use transaction
-                localdbConnection.setAutoCommit(false);
-                Statement statement = localdbConnection.createStatement();
-                String sql = "PRAGMA writable_schema = 1;";
-                statement.execute(sql);
-                sql = "DELETE FROM sqlite_master "
-                        + "WHERE type in ('view', 'table', 'index', 'trigger');";
-                statement.execute(sql);
-                sql = "PRAGMA writable_schema = 0;";
-                statement.execute(sql);
-                // commit all commands
-                localdbConnection.commit();
-                localdbConnection.setAutoCommit(true);
-                // free the space
-                // sql = new String("VACUUM;");
-                // statement.execute(sql);
-            } catch (SQLException exception) {
-                try {
-                    // rollback all transactions
-                    localdbConnection.rollback();
-                } catch (SQLException sqlException) {
-                    if (Global.DEBUG) {
-                        sqlException.printStackTrace();
-                    }
-                }
-                if (Global.DEBUG) {
-                    exception.printStackTrace();
-                }
-                String errorMessage = "Error occurred while remove all collections from local datastore: "
-                        + exception;
-                throw new KintoException(errorMessage);
-            } finally {
-                close();
-                isLocalDBConnected = false;
-                System.out.println("Local datastore cleared. Connection to database closed.");
-            }
-        }
-    }
-
     // Publish all local data to the server, import remote changes
     public void sync() {
 
@@ -371,8 +329,7 @@ public final class Kinto {
     public void close() {
         if (isLocalDBConnected) {
             try {
-                localdbConnection.close();
-                localdbConnection = null;
+                dataBase.close();
             } catch (SQLException exception) {
                 if (Global.DEBUG) {
                     exception.printStackTrace();
@@ -383,6 +340,8 @@ public final class Kinto {
 
     private Kinto(KintoConfiguration kintoConfiguration) throws KintoException {
         this.kintoConfiguration = kintoConfiguration;
+        appPackageName = kintoConfiguration.getAppPackageName();
+        bucket = appPackageName.substring(appPackageName.lastIndexOf("."), appPackageName.length());
         // check managed objects
         int size = kintoConfiguration.getObjectTypes().size();
         if (size == 0) {
@@ -398,9 +357,8 @@ public final class Kinto {
         collections = new ArrayList<>(size);
         isLocalDBConnected = false;
         syncEnabled = false;
-
         // initialize the local datastore for the collection
-        initLocalDB();
+        dataBase = KintoDataBase.getInstance(this, appPackageName);
         // create or check collections (schema)
         for (Class<? extends KintoObject> aClass : kintoConfiguration.getObjectTypes()) {
             initializeCollection(aClass);
@@ -413,35 +371,4 @@ public final class Kinto {
         collections.add(kintoCollection);
     }
 
-    // create / open local (sql) datastore
-    private void initLocalDB() throws KintoException {
-        // create or open local sqlite db
-        // connect to an SQLite database (bucket) that does not exist, it automatically creates a new database
-        try {
-            // use sqlite jdbc driver
-            Class.forName("org.sqlite.JDBC");
-            String url = "jdbc:sqlite:" + kintoConfiguration.getLocaldbPath();
-            localdbConnection = DriverManager.getConnection(url);
-            isLocalDBConnected = true;
-            if (Global.DEBUG) {
-                kintoLogger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
-            }
-        } catch (ClassNotFoundException exception) {
-            // sqlite driver not found
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-            String errorMessage = "The JDBC driver for SQLite wasn't found: "
-                    + exception;
-
-            throw new KintoException(errorMessage);
-        } catch (SQLException exception) {
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
-            String errorMessage = "Can't access the local datastore: "
-                    + exception;
-            throw new KintoException(errorMessage);
-        }
-    }
 }

@@ -10,6 +10,9 @@ import java.util.Arrays;
 import java.util.Iterator;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * Configuration
  * The default dir for local databases ist $HOME/.kintojava.
  *
@@ -19,23 +22,21 @@ import java.util.Iterator;
  */
 public class KintoConfiguration {
 
-    private String bucket;
-    private ArrayList<Class<? extends KintoObject>> objectTypes;
-    private String kintoServer;
-    private int kintoPort;
-    private String localdbPath;
+    private final String appPackageName;
+    private final ArrayList<Class<? extends KintoObject>> objectTypes;
+    private final String kintoServer;
+    private final int kintoPort;
 
     /**
      *
      * @param builder Configuration builder (pattern)
      */
     public KintoConfiguration(Builder builder) throws KintoException {
-        this.bucket = builder.bucket;
+        this.appPackageName = builder.appPackageName;
         this.objectTypes = builder.objectTypes;
         validateObjectList();
         this.kintoServer = builder.kintoServer;
         this.kintoPort = builder.kintoPort;
-        this.localdbPath = builder.localdbPath;
     }
 
     // check if all attributes types in object list
@@ -88,8 +89,8 @@ public class KintoConfiguration {
      *
      * @return the name of bucket ("database")
      */
-    public String getBucket() {
-        return bucket;
+    public String getAppPackageName() {
+        return appPackageName;
     }
 
     /**
@@ -110,34 +111,23 @@ public class KintoConfiguration {
     }
 
     /**
-     *
-     * @return the path to local database
-     */
-    public String getLocaldbPath() {
-        return this.localdbPath;
-    }
-
-    /**
      * Building dynamic kinto configurations.
      */
     public static class Builder {
 
-        private String bucket;
+        private String appPackageName;
         private ArrayList<Class<? extends KintoObject>> objectTypes;
         private String kintoServer;
         private int kintoPort;
-        private String localdbPath;
 
-        public Builder(String bucket) {
-            this.bucket = bucket;
+        public Builder(String packageName) {
+            // get the bucket name from package name, e.g. com.myfirm.AppName
+            this.appPackageName = packageName;
             objectTypes = new ArrayList<>();
             // default server
             kintoServer = "localhost";
             // default port
             kintoPort = 443;
-            //  default path for local database
-            String userHomeDir = System.getProperty("user.home");
-            localdbPath = userHomeDir + File.separator + ".kinto-java" + File.separator + bucket + ".sqlite";
         }
 
         public Builder objectTypes(ArrayList<Class<? extends KintoObject>> types) {
@@ -155,15 +145,14 @@ public class KintoConfiguration {
             return this;
         }
 
-        public Builder localdbPath(String path) {
-            localdbPath = path;
+        public Builder appPackageName(String appPackageName) {
+            this.appPackageName = appPackageName;
             return this;
         }
 
         public KintoConfiguration build() throws KintoException {
             return new KintoConfiguration(this);
         }
-
     }
 
 }

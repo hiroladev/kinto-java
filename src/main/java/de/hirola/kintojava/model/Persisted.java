@@ -4,6 +4,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * All fields with this annotation are persistent storable with kinto.
  * The field must have getter and setter with template get<I><B>A</B>ttribute</I> and set<I><B>A</B>ttribute</I>.
  * <P></P>

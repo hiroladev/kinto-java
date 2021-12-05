@@ -2,7 +2,15 @@ package de.hirola.kintojava.logger;
 
 import java.io.File;
 
-public class KintoLoggerConfiguration {
+/**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
+ * @author Michael Schmidt (Hirola)
+ * @since 1.1.1
+ *
+ */
+ public class KintoLoggerConfiguration {
 
     private String bucket;
     private String localLogPath;

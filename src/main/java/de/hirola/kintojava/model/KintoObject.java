@@ -4,6 +4,9 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * A kind of KintoObject can manipulate by Kinto.
  * Objects can create, update and delete.
  *

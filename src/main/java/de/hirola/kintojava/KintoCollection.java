@@ -12,6 +12,9 @@ import java.time.Instant;
 import java.util.*;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * A collection contains a list of objects from same type.
  * If a collections exists, you must not change the fields of the objects (schema)!
  *
@@ -21,8 +24,8 @@ import java.util.*;
  */
 public class KintoCollection {
 
-    private KintoLogger kintoLogger;
-    private final Connection localdbConnection;
+    private final KintoLogger kintoLogger;
+    private KintoDataBase dataBase;
     private final Class<? extends KintoObject> type;
     // storable attributes
     // attribute name, dataset
@@ -40,7 +43,7 @@ public class KintoCollection {
      * @throws KintoException if collection couldn't initialize.
      */
     public KintoCollection(Class<? extends KintoObject> type, Kinto kinto) throws KintoException {
-        localdbConnection = kinto.getLocalDBConnection();
+        dataBase = kinto.getLocalDBConnection();
         this.type = type;
         // TODO: Synchronisation
         isSynced = false;
@@ -232,14 +235,13 @@ public class KintoCollection {
                 try {
                     // execute the sql commands
                     // use transaction for all statements
-                    localdbConnection.setAutoCommit(false);
-                    Statement statement = localdbConnection.createStatement();
+                    dataBase.setAutoCommit(false);
                     // create entry in collection table
-                    statement.execute(createRecordSQL.toString());
+                    dataBase.executeSQL(createRecordSQL.toString());
                     // create relation table entries
                     if (createRelationRecordSQLCommands.size() > 0) {
                         for (String createRelationRecordSQLCommand : createRelationRecordSQLCommands) {
-                            statement.execute(createRelationRecordSQLCommand);
+                            dataBase.executeSQL(createRelationRecordSQLCommand);
                         }
                     }
                     // set the flag for used in relation
@@ -250,7 +252,7 @@ public class KintoCollection {
                             attributeField.set(useInRelationObject, true);
                         } catch (NoSuchFieldException exception) {
                             // rollback all statements
-                            localdbConnection.rollback();
+                            dataBase.rollback();
                             String errorMessage = "Can't determine the attribute 'isUseInRelation' for object "
                                     + useInRelationObject.toString()
                                     + " : "
@@ -264,7 +266,7 @@ public class KintoCollection {
                             throw new KintoException(errorMessage);
                         } catch (IllegalAccessException exception) {
                             // rollback all statements
-                            localdbConnection.rollback();
+                            dataBase.rollback();
                             String errorMessage = "Can't set the attribute 'isUseInRelation' for object "
                                     + useInRelationObject.toString()
                                     + " using reflection: "
@@ -279,11 +281,11 @@ public class KintoCollection {
                         }
                     }
                     // commit all statements
-                    localdbConnection.commit();
+                    dataBase.commit();
                 } catch (SQLException exception) {
                     try {
                         // rollback all statements
-                        localdbConnection.rollback();
+                        dataBase.rollback();
                     } catch (SQLException e) {
                         if (loggerIsAvailable) {
                             String errorMessage = "Save and rollback failed, inconsistent data are possible: "
@@ -308,7 +310,7 @@ public class KintoCollection {
                         // clear all sql statements
                         createRelationRecordSQLCommands.clear();
                         // using no transactions again
-                        localdbConnection.setAutoCommit(true);
+                        dataBase.setAutoCommit(true);
                     } catch (SQLException exception) {
                         if (Global.DEBUG) {
                             exception.printStackTrace();
@@ -330,8 +332,7 @@ public class KintoCollection {
                 if (isValidObjectType(kintoObject)) {
                     // get all objects (uuid) in relation table
                     // use transactions
-                    localdbConnection.setAutoCommit(false);
-                    Statement statement = localdbConnection.createStatement();
+                    dataBase.setAutoCommit(false);
                     // get attributes using reflection
                     Class<? extends KintoObject> clazz = kintoObject.getClass();
                     // build sql command for update the kinto object in local datastore
@@ -423,11 +424,11 @@ public class KintoCollection {
                                     }
                                     try {
                                         // first delete
-                                        statement.execute(deleteSQL.toString());
+                                        dataBase.executeSQL(deleteSQL.toString());
                                         // then replace (insert), if exists
                                         if (replaceRelationRecordSQLCommands.size() > 0) {
                                             for (String replaceRelationRecordSQLCommand : replaceRelationRecordSQLCommands) {
-                                                statement.execute(replaceRelationRecordSQLCommand);
+                                                dataBase.executeSQL(replaceRelationRecordSQLCommand);
                                             }
                                         }
                                     } catch (SQLException exception) {
@@ -458,20 +459,20 @@ public class KintoCollection {
                     updateSQL.append(";");
                     try {
                         // remove the object from local datastore
-                        statement.execute(updateSQL.toString());
+                        dataBase.executeSQL(updateSQL.toString());
                         // commit all updates to local datastore
                         // inclusive all delete statements from list attributes
-                        localdbConnection.commit();
+                        dataBase.commit();
                     } catch (SQLException exception) {
                         // rollback all changes
-                        localdbConnection.rollback();
+                        dataBase.rollback();
                         String errorMessage = "Error occurred while removing from local datastore: "
                                 + exception.getMessage();
                         throw new KintoException(errorMessage);
                     } finally {
                         try {
                             // using no transactions again
-                            localdbConnection.setAutoCommit(true);
+                            dataBase.setAutoCommit(true);
                         } catch (SQLException exception) {
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
@@ -512,7 +513,7 @@ public class KintoCollection {
         } finally {
             try {
                 // using no transactions again
-                localdbConnection.setAutoCommit(true);
+                dataBase.setAutoCommit(true);
             } catch (SQLException exception) {
                 if (Global.DEBUG) {
                     exception.printStackTrace();
@@ -571,8 +572,7 @@ public class KintoCollection {
                                     sql.append(kintoObject.getUUID());
                                     sql.append("';");
                                     try {
-                                        Statement statement = localdbConnection.createStatement();
-                                        ResultSet resultSet = statement.executeQuery(sql.toString());
+                                        ResultSet resultSet = dataBase.executeQuery(sql.toString());
                                         // get the count of rows
                                         int countOfResults = resultSet.getInt("rowcount");
                                         // uuid from list in local datastore not found -> error and rollback
@@ -593,8 +593,8 @@ public class KintoCollection {
                                         sql.append(kintoObject.getUUID());
                                         sql.append("';");
                                         // use transaction
-                                        localdbConnection.setAutoCommit(false);
-                                        statement.execute(sql.toString());
+                                        dataBase.setAutoCommit(false);
+                                        dataBase.executeSQL(sql.toString());
                                         // remove the kinto object
                                         sql = new StringBuilder("DELETE FROM ");
                                         sql.append(getName());
@@ -602,8 +602,8 @@ public class KintoCollection {
                                         sql.append("uuid='");
                                         sql.append(kintoObject.getUUID());
                                         sql.append("';");
-                                        statement.execute(sql.toString());
-                                        localdbConnection.commit();
+                                        dataBase.executeSQL(sql.toString());
+                                        dataBase.commit();
                                     } catch (SQLException exception) {
                                         String errorMessage = "Error occurred while removing from local datastore: "
                                                 + exception.getMessage();
@@ -611,7 +611,7 @@ public class KintoCollection {
                                     } finally {
                                         try {
                                             // using no transactions again
-                                            localdbConnection.setAutoCommit(true);
+                                            dataBase.setAutoCommit(true);
                                         } catch (SQLException exception) {
                                             if (Global.DEBUG) {
                                                 exception.printStackTrace();
@@ -658,8 +658,7 @@ public class KintoCollection {
         List<KintoObject> objects = new ArrayList<>();
         try {
             String sql = "SELECT * FROM " + getName() + ";";
-            Statement statement = localdbConnection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
+            ResultSet resultSet = dataBase.executeQuery(sql);
             while (resultSet.next()) {
                 objects.add(createObjectFromResultSet(resultSet));
             }
@@ -689,8 +688,7 @@ public class KintoCollection {
         try {
             String sql = "SELECT count(*) as rowcount, * FROM " + getName()
                     + " WHERE uuid='" + uuid + "';";
-            Statement statement = localdbConnection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
+            ResultSet resultSet = dataBase.executeQuery(sql);
             // get the count of rows
             int countOfResults = resultSet.getInt("rowcount");
             if (countOfResults == 0) {
@@ -788,8 +786,7 @@ public class KintoCollection {
             StringBuilder sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
             sql.append(getName());
             sql.append("';");
-            Statement statement = localdbConnection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql.toString());
+            ResultSet resultSet = dataBase.executeQuery(sql.toString());
             // table exists?
             // A TYPE_FORWARD_ONLY ResultSet only supports next() for navigation,
             // and not methods like first(), last(), absolute(int), relative(int).
@@ -844,7 +841,7 @@ public class KintoCollection {
                     kintoLogger.log(LogEntry.Severity.DEBUG, message);
                 }
                 // create the table in local datastore
-                statement.execute(sql.toString());
+                dataBase.executeSQL(sql.toString());
             }
         } catch (SQLException exception) {
             if (Global.DEBUG) {
@@ -867,8 +864,7 @@ public class KintoCollection {
                     StringBuilder sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
                     sql.append(relationTableName);
                     sql.append("';");
-                    Statement statement = localdbConnection.createStatement();
-                    ResultSet resultSet = statement.executeQuery(sql.toString());
+                    ResultSet resultSet = dataBase.executeQuery(sql.toString());
                     // table exists?
                     // A TYPE_FORWARD_ONLY ResultSet only supports next() for navigation,
                     // and not methods like first(), last(), absolute(int), relative(int).
@@ -903,7 +899,7 @@ public class KintoCollection {
                             kintoLogger.log(LogEntry.Severity.DEBUG, message);
                         }
                         // create the table in local datastore
-                        statement.execute(sql.toString());
+                        dataBase.executeSQL(sql.toString());
                     }
                 }
             }
@@ -963,8 +959,7 @@ public class KintoCollection {
             sql.append(" WHERE uuid='");
             sql.append(kintoObject.getUUID());
             sql.append("';");
-            Statement statement = localdbConnection.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql.toString());
+            ResultSet resultSet = dataBase.executeQuery(sql.toString());
             if (resultSet.next()) {
                 if (Global.DEBUG && loggerIsAvailable) {
                     String message = "Kinto object with id " + kintoObject.getUUID() + " exists in local datastore.";
@@ -1060,8 +1055,7 @@ public class KintoCollection {
                             + " FROM " + relationTableName
                             + " WHERE " + getName().toLowerCase(Locale.ROOT) + "uuid='"
                             + kintoObject.getUUID() + "';";
-                    Statement statement = localdbConnection.createStatement();
-                    ResultSet uuidResultSet = statement.executeQuery(sql);
+                    ResultSet uuidResultSet = dataBase.executeQuery(sql);
                     while (uuidResultSet.next()) {
                         // create an object with uuid
                         KintoObject listKintoObject = constructor.newInstance();

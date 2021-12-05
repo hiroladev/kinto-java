@@ -6,6 +6,9 @@ import java.sql.Connection;
 import java.util.List;
 
 /**
+ * Copyright 2021 by Michael Schmidt, Hirola Consulting
+ * This software us licensed under the AGPL-3.0 or later.
+ *
  * A query object can be used to get objects by a filter.
  *
  * @author Michael Schmidt (Hirola)
