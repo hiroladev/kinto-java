@@ -3,7 +3,6 @@ package de.hirola.kintojava;
 import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
 
-import java.io.File;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;

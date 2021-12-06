@@ -5,6 +5,8 @@ import de.hirola.kintojava.logger.LogEntry;
 
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
+import android.database.Cursor;
+
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -44,19 +46,21 @@ public class KintoDatabaseAdapter {
         }
     }
 
-    public ResultSet executeQuery(String sql) throws SQLException {
+    public KintoQueryResultSet executeQuery(String sql) throws SQLException {
         if (isRunningOnAndroid) {
             // Android
             //  SQL string must not be ; terminated
             if (sql.endsWith(";")) {
                 sql = sql.substring(0,sql.lastIndexOf(";"));
             }
-            androidDatabase.rawQuery(sql, null);
+            Cursor cursor =  androidDatabase.rawQuery(sql, null);
+            return new KintoQueryResultSet(cursor);
         } else {
             // JVM
-            return jvmDatabase.createStatement().executeQuery(sql);
+            Statement statement = jvmDatabase.createStatement();
+            ResultSet resultSet = statement.executeQuery(sql);
+            return new KintoQueryResultSet(resultSet);
         }
-        return null;
     }
 
     public void beginTransaction() throws SQLException {

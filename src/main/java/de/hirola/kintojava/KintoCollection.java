@@ -5,10 +5,10 @@ import de.hirola.kintojava.logger.KintoLogger;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.*;
 import java.sql.*;
-import java.time.Instant;
 import java.util.*;
 
 /**
@@ -545,7 +545,7 @@ public class KintoCollection {
                                     sql.append(kintoObject.getUUID());
                                     sql.append("';");
                                     try {
-                                        ResultSet resultSet = dataBase.executeQuery(sql.toString());
+                                        KintoQueryResultSet resultSet = dataBase.executeQuery(sql.toString());
                                         // get the count of rows
                                         int countOfResults = resultSet.getInt("rowcount");
                                         // uuid from list in local datastore not found -> error and rollback
@@ -622,7 +622,7 @@ public class KintoCollection {
         List<KintoObject> objects = new ArrayList<>();
         try {
             String sql = "SELECT * FROM " + getName() + ";";
-            ResultSet resultSet = dataBase.executeQuery(sql);
+            KintoQueryResultSet resultSet = dataBase.executeQuery(sql);
             while (resultSet.next()) {
                 objects.add(createObjectFromResultSet(resultSet));
             }
@@ -652,7 +652,7 @@ public class KintoCollection {
         try {
             String sql = "SELECT count(*) as rowcount, * FROM " + getName()
                     + " WHERE uuid='" + uuid + "';";
-            ResultSet resultSet = dataBase.executeQuery(sql);
+            KintoQueryResultSet resultSet = dataBase.executeQuery(sql);
             // get the count of rows
             int countOfResults = resultSet.getInt("rowcount");
             if (countOfResults == 0) {
@@ -693,7 +693,7 @@ public class KintoCollection {
 
     // build a map with attribute and value for the object
     // HashMap<attribute name, data set>
-    private HashMap<String,DataSet> buildAttributesMap(Class<? extends KintoObject> type) throws KintoException {
+    private @NotNull HashMap<String,DataSet> buildAttributesMap(Class<? extends KintoObject> type) throws KintoException {
         HashMap<String, DataSet> attributes = new HashMap<>();
         try {
             // use reflection to get (storable) attributes of the objects
@@ -750,7 +750,7 @@ public class KintoCollection {
             StringBuilder sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
             sql.append(getName());
             sql.append("';");
-            ResultSet resultSet = dataBase.executeQuery(sql.toString());
+            KintoQueryResultSet resultSet = dataBase.executeQuery(sql.toString());
             // table exists?
             // A TYPE_FORWARD_ONLY ResultSet only supports next() for navigation,
             // and not methods like first(), last(), absolute(int), relative(int).
@@ -828,7 +828,7 @@ public class KintoCollection {
                     StringBuilder sql = new StringBuilder("SELECT name FROM sqlite_master WHERE type='table' AND name='");
                     sql.append(relationTableName);
                     sql.append("';");
-                    ResultSet resultSet = dataBase.executeQuery(sql.toString());
+                    KintoQueryResultSet resultSet = dataBase.executeQuery(sql.toString());
                     // table exists?
                     // A TYPE_FORWARD_ONLY ResultSet only supports next() for navigation,
                     // and not methods like first(), last(), absolute(int), relative(int).
@@ -923,7 +923,7 @@ public class KintoCollection {
             sql.append(" WHERE uuid='");
             sql.append(kintoObject.getUUID());
             sql.append("';");
-            ResultSet resultSet = dataBase.executeQuery(sql.toString());
+            KintoQueryResultSet resultSet = dataBase.executeQuery(sql.toString());
             if (resultSet.next()) {
                 if (Global.DEBUG && loggerIsAvailable) {
                     String message = "Kinto object with id " + kintoObject.getUUID() + " exists in local datastore.";
@@ -937,7 +937,7 @@ public class KintoCollection {
         return true;
     }
 
-    private KintoObject createObjectFromResultSet(ResultSet resultSet) throws KintoException {
+    private KintoObject createObjectFromResultSet(KintoQueryResultSet resultSet) throws KintoException {
         try {
             // create object from local datastore using reflection
             Constructor<? extends KintoObject> constructor = type.getConstructor();
@@ -1019,7 +1019,7 @@ public class KintoCollection {
                             + " FROM " + relationTableName
                             + " WHERE " + getName().toLowerCase(Locale.ROOT) + "uuid='"
                             + kintoObject.getUUID() + "';";
-                    ResultSet uuidResultSet = dataBase.executeQuery(sql);
+                    KintoQueryResultSet uuidResultSet = dataBase.executeQuery(sql);
                     while (uuidResultSet.next()) {
                         // create an object with uuid
                         KintoObject listKintoObject = constructor.newInstance();
@@ -1067,8 +1067,8 @@ public class KintoCollection {
                         case "double":
                             value = resultSet.getDouble(attributeName);
                             break;
-                        case "java.time.Instant":
-                            value = Instant.ofEpochMilli(resultSet.getDate(attributeName).getTime());
+                        case "java.time.LocalDate":
+                            value = resultSet.getDate(attributeName);
                             break;
                         case "java.lang.String":
                             value = resultSet.getString(attributeName);
