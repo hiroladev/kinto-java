@@ -5,6 +5,7 @@ import de.hirola.kintojava.logger.KintoLoggerConfiguration;
 import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -29,8 +30,7 @@ public final class Kinto {
     private String bucket;
     private final String appPackageName;
     private final ArrayList<KintoCollection> collections;
-    private KintoDataBase dataBase;
-    private boolean isLocalDBConnected;
+    private KintoDatabaseAdapter dataBase;
     private final boolean syncEnabled;
 
     /**
@@ -59,9 +59,9 @@ public final class Kinto {
      * @return a (open) connection to the local datastore
      * @throws KintoException if the connection to local datastore couldn't' created
      */
-    public KintoDataBase getLocalDBConnection() throws KintoException {
+    public KintoDatabaseAdapter getLocalDBConnection() throws KintoException {
         if (dataBase == null) {
-            dataBase = KintoDataBase.getInstance(this, appPackageName);
+            dataBase = KintoDatabaseAdapter.getInstance(this, appPackageName);
         }
         return dataBase;
     }
@@ -82,7 +82,7 @@ public final class Kinto {
         if (kintoObject == null) {
             throw new KintoException("Can't add a null object.");
         }
-        if (isLocalDBConnected) {
+        if (isOpen()) {
             Iterator<KintoCollection> iterator = collections.stream().iterator();
             while (iterator.hasNext()) {
                 KintoCollection collection = iterator.next();
@@ -104,7 +104,7 @@ public final class Kinto {
         if (kintoObject == null) {
             throw new KintoException("Can't update a null object.");
         }
-        if (isLocalDBConnected) {
+        if (isOpen()) {
             Iterator<KintoCollection> iterator = collections.stream().iterator();
             while (iterator.hasNext()) {
                 KintoCollection collection = iterator.next();
@@ -126,7 +126,7 @@ public final class Kinto {
         if (kintoObject == null) {
             throw new KintoException("Can't remove a null object.");
         }
-        if (isLocalDBConnected) {
+        if (isOpen()) {
             if (kintoObject.isUseInRelation()) {
                 throw new KintoException("Can't remove the object. It's used in an other object. Please update the other object before.");
             }
@@ -149,7 +149,7 @@ public final class Kinto {
      * @throws KintoException if an error occurred while searching in local datastore
      */
     public List<? extends KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
-        if (isLocalDBConnected) {
+        if (isOpen()) {
             List<KintoObject> objects = new ArrayList<>();
             // the collection for the object class
             KintoCollection kintoObjectClassCollection = null;
@@ -323,11 +323,11 @@ public final class Kinto {
     }
 
     public boolean isOpen() {
-        return isLocalDBConnected;
+        return dataBase.isOpen();
     }
 
     public void close() {
-        if (isLocalDBConnected) {
+        if (isOpen()) {
             try {
                 dataBase.close();
             } catch (SQLException exception) {
@@ -338,10 +338,14 @@ public final class Kinto {
         }
     }
 
-    private Kinto(KintoConfiguration kintoConfiguration) throws KintoException {
+    private Kinto(@NotNull KintoConfiguration kintoConfiguration) throws KintoException {
         this.kintoConfiguration = kintoConfiguration;
         appPackageName = kintoConfiguration.getAppPackageName();
-        bucket = appPackageName.substring(appPackageName.lastIndexOf("."), appPackageName.length());
+        if (appPackageName.contains(".")) {
+            bucket = appPackageName.substring(appPackageName.lastIndexOf("."));
+        } else {
+            bucket = appPackageName;
+        }
         // check managed objects
         int size = kintoConfiguration.getObjectTypes().size();
         if (size == 0) {
@@ -355,10 +359,9 @@ public final class Kinto {
                 .build();
         kintoLogger = KintoLogger.getInstance(loggerConfiguration);
         collections = new ArrayList<>(size);
-        isLocalDBConnected = false;
         syncEnabled = false;
         // initialize the local datastore for the collection
-        dataBase = KintoDataBase.getInstance(this, appPackageName);
+        dataBase = KintoDatabaseAdapter.getInstance(this, appPackageName);
         // create or check collections (schema)
         for (Class<? extends KintoObject> aClass : kintoConfiguration.getObjectTypes()) {
             initializeCollection(aClass);

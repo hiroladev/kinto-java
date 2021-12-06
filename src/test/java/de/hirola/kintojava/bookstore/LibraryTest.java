@@ -8,10 +8,11 @@ import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.model.KintoObject;
 
 import org.junit.jupiter.api.Test;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.ArrayList;
 import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
 
 class LibraryTest {
 
@@ -84,6 +85,7 @@ class LibraryTest {
             // kinto.clearLocalDataStore();
 
         } catch (KintoException exception) {
+            fail();
             exception.printStackTrace();
         }
     }

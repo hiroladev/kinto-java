@@ -25,7 +25,7 @@ import java.util.*;
 public class KintoCollection {
 
     private final KintoLogger kintoLogger;
-    private KintoDataBase dataBase;
+    private KintoDatabaseAdapter dataBase;
     private final Class<? extends KintoObject> type;
     // storable attributes
     // attribute name, dataset
@@ -235,7 +235,7 @@ public class KintoCollection {
                 try {
                     // execute the sql commands
                     // use transaction for all statements
-                    dataBase.setAutoCommit(false);
+                    dataBase.beginTransaction();
                     // create entry in collection table
                     dataBase.executeSQL(createRecordSQL.toString());
                     // create relation table entries
@@ -306,16 +306,7 @@ public class KintoCollection {
                     }
                     throw new KintoException(errorMessage);
                 } finally {
-                    try {
-                        // clear all sql statements
-                        createRelationRecordSQLCommands.clear();
-                        // using no transactions again
-                        dataBase.setAutoCommit(true);
-                    } catch (SQLException exception) {
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                    }
+                    createRelationRecordSQLCommands.clear();
                 }
             } else {
                 // update
@@ -332,7 +323,7 @@ public class KintoCollection {
                 if (isValidObjectType(kintoObject)) {
                     // get all objects (uuid) in relation table
                     // use transactions
-                    dataBase.setAutoCommit(false);
+                    dataBase.beginTransaction();
                     // get attributes using reflection
                     Class<? extends KintoObject> clazz = kintoObject.getClass();
                     // build sql command for update the kinto object in local datastore
@@ -469,15 +460,6 @@ public class KintoCollection {
                         String errorMessage = "Error occurred while removing from local datastore: "
                                 + exception.getMessage();
                         throw new KintoException(errorMessage);
-                    } finally {
-                        try {
-                            // using no transactions again
-                            dataBase.setAutoCommit(true);
-                        } catch (SQLException exception) {
-                            if (Global.DEBUG) {
-                                exception.printStackTrace();
-                            }
-                        }
                     }
                 }
             } else {
@@ -510,15 +492,6 @@ public class KintoCollection {
                 exception.printStackTrace();
             }
             throw new KintoException(errorMessage);
-        } finally {
-            try {
-                // using no transactions again
-                dataBase.setAutoCommit(true);
-            } catch (SQLException exception) {
-                if (Global.DEBUG) {
-                    exception.printStackTrace();
-                }
-            }
         }
     }
 
@@ -593,7 +566,7 @@ public class KintoCollection {
                                         sql.append(kintoObject.getUUID());
                                         sql.append("';");
                                         // use transaction
-                                        dataBase.setAutoCommit(false);
+                                        dataBase.beginTransaction();
                                         dataBase.executeSQL(sql.toString());
                                         // remove the kinto object
                                         sql = new StringBuilder("DELETE FROM ");
@@ -608,15 +581,6 @@ public class KintoCollection {
                                         String errorMessage = "Error occurred while removing from local datastore: "
                                                 + exception.getMessage();
                                         throw  new KintoException(errorMessage);
-                                    } finally {
-                                        try {
-                                            // using no transactions again
-                                            dataBase.setAutoCommit(true);
-                                        } catch (SQLException exception) {
-                                            if (Global.DEBUG) {
-                                                exception.printStackTrace();
-                                            }
-                                        }
                                     }
                                 }
                             }

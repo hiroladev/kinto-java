@@ -19,53 +19,133 @@ import java.sql.*;
  * @author Michael Schmidt (Hirola)
  * @since 1.1.1
  */
-public class KintoDataBase {
+public class KintoDatabaseAdapter {
 
-    private static KintoDataBase instance;
+    private static KintoDatabaseAdapter instance;
     private final KintoLogger logger;
     private boolean isRunningOnAndroid;
-    private Connection sqLiteJVMDatabase; // JVM database
-    private SQLiteDatabase sqLiteAndroidDatabase; // Android database
+    private Connection jvmDatabase; // JVM database
+    private SQLiteDatabase androidDatabase; // Android database
 
-    public static KintoDataBase getInstance(Kinto kinto, String appPackageName) throws KintoException {
+    public static KintoDatabaseAdapter getInstance(Kinto kinto, String appPackageName) throws KintoException {
         if (instance == null) {
-            instance = new KintoDataBase(kinto, appPackageName);
+            instance = new KintoDatabaseAdapter(kinto, appPackageName);
         }
         return instance;
     }
 
     public void executeSQL(String sql) throws SQLException {
-
+        if (isRunningOnAndroid) {
+            // Android
+            androidDatabase.execSQL(sql);
+        } else {
+            // JVM
+            jvmDatabase.createStatement().execute(sql);
+        }
     }
 
     public ResultSet executeQuery(String sql) throws SQLException {
+        if (isRunningOnAndroid) {
+            // Android
+            //  SQL string must not be ; terminated
+            if (sql.endsWith(";")) {
+                sql = sql.substring(0,sql.lastIndexOf(";"));
+            }
+            androidDatabase.rawQuery(sql, null);
+        } else {
+            // JVM
+            return jvmDatabase.createStatement().executeQuery(sql);
+        }
         return null;
     }
 
-    public void setAutoCommit(boolean i) throws SQLException {
-
+    public void beginTransaction() throws SQLException {
+        if (isRunningOnAndroid) {
+            // Android
+            androidDatabase.beginTransaction();
+        } else {
+            // JVM
+            jvmDatabase.setAutoCommit(false);
+        }
     }
 
     public void commit() throws SQLException {
-
+        boolean errorOccurred = false;
+        Exception commitException = null;
+        if (isRunningOnAndroid) {
+            // Android
+            try {
+                androidDatabase.setTransactionSuccessful();
+            } catch (IllegalStateException exception) {
+                // not in transaction or transaction already succeeded
+                commitException = exception;
+                errorOccurred = true;
+             } finally {
+                androidDatabase.endTransaction();
+            }
+        } else {
+            // JVM
+            try {
+                jvmDatabase.commit();
+            } catch (SQLException exception) {
+                commitException = exception;
+                errorOccurred = true;
+            } finally {
+                // default: transactions not used
+                jvmDatabase.setAutoCommit(true);
+            }
+        }
+        if (errorOccurred) {
+            throw new SQLException(commitException);
+        }
     }
 
     public void rollback() throws SQLException {
-
+        if (isRunningOnAndroid) {
+            // Android
+            if (androidDatabase.inTransaction()) {
+                androidDatabase.endTransaction();
+            }
+        } else {
+            // JVM
+            jvmDatabase.rollback();
+        }
     }
 
     public boolean isOpen() {
-        return true;
+        if (isRunningOnAndroid) {
+            // Android
+            androidDatabase.isOpen();
+        } else {
+            // JVM
+            try {
+                return !jvmDatabase.isClosed();
+            } catch (SQLException exception) {
+                return false;
+            }
+        }
+        return false;
     }
 
     public void close() throws SQLException {
-
+        if (isRunningOnAndroid) {
+            // Android
+            androidDatabase.close();
+        } else {
+            // JVM
+            jvmDatabase.close();
+        }
     }
 
-    private KintoDataBase(Kinto kinto, @NotNull String appPackageName) throws KintoException {
+    private KintoDatabaseAdapter(@NotNull Kinto kinto, @NotNull String appPackageName) throws KintoException {
         logger = kinto.getKintoLogger();
         String databasePath;
-        String databaseName = appPackageName.substring(appPackageName.lastIndexOf("."), appPackageName.length());
+        String databaseName;
+        if (appPackageName.contains(".")) {
+            databaseName = appPackageName.substring(appPackageName.lastIndexOf("."));
+        } else {
+            databaseName = appPackageName;
+        }
         // build the path, determine if android or jvm
         // see https://developer.android.com/reference/java/lang/System#getProperties()
         try {
@@ -92,13 +172,13 @@ public class KintoDataBase {
         try {
             // on Android use the built-in SQLite database implementation
             if (isRunningOnAndroid) {
-                sqLiteAndroidDatabase = SQLiteDatabase.openOrCreateDatabase(
+                androidDatabase = SQLiteDatabase.openOrCreateDatabase(
                         databasePath, null, null);
             } else {
                 // on JVM use sqlite jdbc driver
                 Class.forName("org.sqlite.JDBC");
                 String url = "jdbc:sqlite:" + databasePath;
-                sqLiteJVMDatabase = DriverManager.getConnection(url);
+                jvmDatabase = DriverManager.getConnection(url);
             }
             if (Global.DEBUG) {
                 logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
