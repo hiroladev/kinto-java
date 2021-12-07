@@ -85,8 +85,8 @@ class LibraryTest {
             // kinto.clearLocalDataStore();
 
         } catch (KintoException exception) {
-            fail();
             exception.printStackTrace();
+            fail();
         }
     }
 

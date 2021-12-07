@@ -53,7 +53,7 @@ public class KintoDatabaseAdapter {
             if (sql.endsWith(";")) {
                 sql = sql.substring(0,sql.lastIndexOf(";"));
             }
-            Cursor cursor =  androidDatabase.rawQuery(sql, null);
+            Cursor cursor = androidDatabase.rawQuery(sql, null);
             return new KintoQueryResultSet(cursor);
         } else {
             // JVM
@@ -119,7 +119,7 @@ public class KintoDatabaseAdapter {
     public boolean isOpen() {
         if (isRunningOnAndroid) {
             // Android
-            androidDatabase.isOpen();
+            return androidDatabase.isOpen();
         } else {
             // JVM
             try {
@@ -128,7 +128,6 @@ public class KintoDatabaseAdapter {
                 return false;
             }
         }
-        return false;
     }
 
     public void close() throws SQLException {
@@ -146,7 +145,7 @@ public class KintoDatabaseAdapter {
         String databasePath;
         String databaseName;
         if (appPackageName.contains(".")) {
-            databaseName = appPackageName.substring(appPackageName.lastIndexOf("."));
+            databaseName = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);
         } else {
             databaseName = appPackageName;
         }

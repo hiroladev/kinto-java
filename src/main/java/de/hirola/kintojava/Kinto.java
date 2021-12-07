@@ -27,7 +27,7 @@ public final class Kinto {
     private static Kinto instance;
     private final KintoConfiguration kintoConfiguration;
     private final KintoLogger kintoLogger;
-    private String bucket;
+    private final String bucket;
     private final String appPackageName;
     private final ArrayList<KintoCollection> collections;
     private KintoDatabaseAdapter dataBase;
@@ -342,7 +342,7 @@ public final class Kinto {
         this.kintoConfiguration = kintoConfiguration;
         appPackageName = kintoConfiguration.getAppPackageName();
         if (appPackageName.contains(".")) {
-            bucket = appPackageName.substring(appPackageName.lastIndexOf("."));
+            bucket = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);
         } else {
             bucket = appPackageName;
         }
