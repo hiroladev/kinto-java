@@ -25,7 +25,7 @@ import java.util.*;
 public class KintoCollection {
 
     private final KintoLogger kintoLogger;
-    private KintoDatabaseAdapter dataBase;
+    private final KintoDatabaseAdapter dataBase;
     private final Class<? extends KintoObject> type;
     // storable attributes
     // attribute name, dataset
@@ -532,7 +532,8 @@ public class KintoCollection {
                                     // remove in relation tables
                                     // use transactions
                                     // build sql select command for relation table
-                                    StringBuilder sql = new StringBuilder("SELECT count(*) as rowcount, ");
+                                    StringBuilder sql = new StringBuilder("SELECT count(*) as "
+                                            + Global.rowcountColumnName + ", ");
                                     // all uuid from objects in list
                                     sql.append(listObjectType.getSimpleName().toLowerCase(Locale.ROOT));
                                     sql.append("uuid FROM ");
@@ -547,7 +548,7 @@ public class KintoCollection {
                                     try {
                                         KintoQueryResultSet resultSet = dataBase.executeQuery(sql.toString());
                                         // get the count of rows
-                                        int countOfResults = resultSet.getInt("rowcount");
+                                        int countOfResults = resultSet.getInt(Global.rowcountColumnName);
                                         // uuid from list in local datastore not found -> error and rollback
                                         if (countOfResults == 0) {
                                             String errorMessage = "Objects from the list attribute "
@@ -635,6 +636,7 @@ public class KintoCollection {
             if (Global.DEBUG) {
                 exception.printStackTrace();
             }
+            throw new KintoException(exception);
         }
         return objects;
     }
@@ -650,11 +652,11 @@ public class KintoCollection {
             throw new KintoException("Can't search for object with empty uuid.");
         }
         try {
-            String sql = "SELECT count(*) as rowcount, * FROM " + getName()
+            String sql = "SELECT count(*) as "+ Global.rowcountColumnName + ", * FROM " + getName()
                     + " WHERE uuid='" + uuid + "';";
             KintoQueryResultSet resultSet = dataBase.executeQuery(sql);
             // get the count of rows
-            int countOfResults = resultSet.getInt("rowcount");
+            int countOfResults = resultSet.getInt(Global.rowcountColumnName);
             if (countOfResults == 0) {
                 return null;
             }
@@ -954,7 +956,7 @@ public class KintoCollection {
             // set the kinto id
             Field kintoid = KintoObject.class.getDeclaredField("kintoID");
             kintoid.setAccessible(true);
-            kintoid.set(kintoObject, resultSet.getString("kintoID"));
+            kintoid.set(kintoObject, resultSet.getString("kintoid"));
             // set the other attributes
             for (String attributeName : storableAttributes.keySet()) {
                 DataSet dataSet = storableAttributes.get(attributeName);

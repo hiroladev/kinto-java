@@ -1,5 +1,7 @@
 package de.hirola.kintojava.logger;
 
+import de.hirola.kintojava.KintoConfiguration;
+
 import java.io.File;
 
 /**
@@ -12,9 +14,8 @@ import java.io.File;
  */
  public class KintoLoggerConfiguration {
 
-    private String bucket;
-    private String localLogPath;
-    private int logggingDestination;
+    private final String appPackageName;
+    private final int logggingDestination;
 
     /**
      The "struct" of  possible destinations for logging.
@@ -38,29 +39,12 @@ import java.io.File;
     }
 
     public KintoLoggerConfiguration(Builder builder) {
-        this.bucket = builder.bucket;
-        this.localLogPath = builder.localLogPath;
+        this.appPackageName = builder.appPackageName;
         this.logggingDestination = builder.logggingDestination;
     }
 
-    /**
-     *
-     * @return the name of bucket ("database") for api logs
-     */
-    public String getBucket() {
-
-        return this.bucket;
-
-    }
-
-    /**
-     *
-     * @return the path to local log files
-     */
-    public String getLocalLogPath() {
-
-        return this.localLogPath;
-
+    public String getAppPackageName() {
+        return appPackageName;
     }
 
     /**
@@ -77,26 +61,22 @@ import java.io.File;
      */
     public static class Builder {
 
-        private String bucket;
-        private String localLogPath;
+        private String appPackageName;
         private int logggingDestination;
 
-        public Builder(String bucket) {
-            this.bucket = bucket;
-            //  default path for local database
-            String userHomeDir = System.getProperty("user.home");
-            this.localLogPath = userHomeDir + File.separator + ".kinto-java" + File.separator + "logs";
-            // default log to console
+        public Builder(String appPackageName) {
+            // get the bucket name from package name, e.g. com.myfirm.AppName
+            this.appPackageName = appPackageName;
             this.logggingDestination = LOGGING_DESTINATION.CONSOLE;
-        }
-
-        public Builder localLogPath(String path) {
-            this.localLogPath = path;
-            return this;
         }
 
         public Builder logggingDestination(int logggingDestination) {
             this.logggingDestination = logggingDestination;
+            return this;
+        }
+
+        public Builder appPackageName(String appPackageName) {
+            this.appPackageName = appPackageName;
             return this;
         }
 

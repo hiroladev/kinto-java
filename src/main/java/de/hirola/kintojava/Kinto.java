@@ -353,7 +353,7 @@ public final class Kinto {
         }
         // activate logging
         // create the library logger
-        KintoLoggerConfiguration loggerConfiguration = new KintoLoggerConfiguration.Builder("kintojava-logs")
+        KintoLoggerConfiguration loggerConfiguration = new KintoLoggerConfiguration.Builder(appPackageName)
                 .logggingDestination(KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE
                         + KintoLoggerConfiguration.LOGGING_DESTINATION.FILE)
                 .build();

@@ -153,5 +153,4 @@ public class KintoConfiguration {
             return new KintoConfiguration(this);
         }
     }
-
 }

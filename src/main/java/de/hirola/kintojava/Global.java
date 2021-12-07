@@ -14,7 +14,9 @@ public final class Global {
 
     // enable / disable debug mode
     public static final boolean DEBUG = true;
-
+    // workaround for "rowcount"
+    // with sqlite jdbc the cursor can only forward
+    public static final String rowcountColumnName = "rowcount";
     public static final List<String> illegalAttributeNames;
 
     static {

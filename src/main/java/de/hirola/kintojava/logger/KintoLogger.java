@@ -24,8 +24,9 @@ import java.time.format.DateTimeFormatter;
 
     private static KintoLogger instance;
     private final KintoLoggerConfiguration configuration;
+    private boolean isRunningOnAndroid;
     private final boolean localLoggingEnabled;
-    private final Path logFilePath;
+    private Path logFilePath;
     private boolean remoteLoggingEnabled;
 
     public static KintoLogger getInstance(KintoLoggerConfiguration configuration) {
@@ -97,7 +98,32 @@ import java.time.format.DateTimeFormatter;
 
     private KintoLogger(KintoLoggerConfiguration configuration) {
         this.configuration = configuration;
-        this.logFilePath = Paths.get(configuration.getLocalLogPath(), "kinto-java.log");
+        String appPackageName = configuration.getAppPackageName();
+        String logfileName;
+        if (appPackageName.contains(".")) {
+            logfileName = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);
+        } else {
+            logfileName = appPackageName;
+        }
+        // build the path, determine if android or jvm
+        // see https://developer.android.com/reference/java/lang/System#getProperties()
+        try {
+            if (System.getProperty("java.vm.vendor").equals("The Android Project")) {
+                // Android
+                isRunningOnAndroid = true;
+                // path for local database on Android
+                logFilePath = Paths.get("/data/data/" + logfileName + "/.log");
+            } else {
+                // JVM
+                isRunningOnAndroid = false;
+                //  path for local database on JVM
+                String userHomeDir = System.getProperty("user.home");
+                logFilePath = Paths.get(userHomeDir + File.separator + ".kinto-java" + File.separator + logfileName + ".log");
+            }
+        } catch (Exception exception){
+            logFilePath = null;
+            isRunningOnAndroid = false;
+        }
         if (!initFileLogging()) {
             System.out.println("Logging to file is disable! Activate debug mode for more information.");
             localLoggingEnabled = false;
@@ -143,121 +169,105 @@ import java.time.format.DateTimeFormatter;
         int maxFileCount = 10;
         // create new log file?
         boolean createLogFile = false;
-        Path logDirPath = Paths.get(this.configuration.getLocalLogPath());
         // check the file system
-        // 1. log dir path exists?
-        if (Files.exists(logDirPath)) {
-            // 2. check is a dir
-            if (Files.isDirectory(logDirPath)) {
-                // 3. can we write into the dir?
-                if (Files.isWritable(logDirPath)) {
-                    // 4. does the log file exists?
-                    if (Files.exists(logFilePath)) {
-                        // 5. check is a file?
-                        if (Files.isRegularFile(logFilePath)) {
-                            // 6. can we write into the file?
-                            if (Files.isWritable(logFilePath)) {
-                                // 7. check size and count of log file(s)
+        // 1. log file path exists?
+        if (Files.exists(logFilePath)) {
+            // 2. check if is a dir
+            if (!Files.isDirectory(logFilePath)) {
+                // 3. is a regular file?
+                if (Files.isRegularFile(logFilePath)) {
+                    // 4. can we write into the file?
+                    if (Files.isWritable(logFilePath)) {
+                        // 5. check size and count of log file(s)
+                        try {
+                            // check the size and rollover
+                            if (Files.size(logFilePath) >= maxFileSize) {
+                                // determine the count of log files
+                                // and delete the oldest log file
                                 try {
-                                    // check the size and rollover
-                                    if (Files.size(logFilePath) >= maxFileSize) {
-                                        // determine the count of log files
-                                        // and delete the oldest log file
-                                        try {
-                                            int fileCount = 0;
-                                            FileTime lastTimestamp = FileTime.fromMillis(0);
-                                            //  the oldest log file
-                                            Path oldestLogFilePath = null;
-                                            DirectoryStream<Path> files = Files.newDirectoryStream(logDirPath);
+                                    int fileCount = 0;
+                                    FileTime lastTimestamp = FileTime.fromMillis(0);
+                                    //  the oldest log file
+                                    Path oldestLogFilePath = null;
+                                    DirectoryStream<Path> files = Files.newDirectoryStream(logFilePath);
 
-                                            for(Path file: files) {
-                                                if(Files.isRegularFile(file)) {
-                                                    if (file.startsWith(logFilePath.getFileName())) {
-                                                        fileCount++;
-                                                        BasicFileAttributes attributes = Files.readAttributes(file, BasicFileAttributes.class);
-                                                        FileTime creationTime = attributes.creationTime();
-                                                        // compare creation times
-                                                        if(creationTime.compareTo(lastTimestamp) < 0) {
-                                                            //  notice the oldest log file
-                                                            oldestLogFilePath = file;
-                                                            lastTimestamp = creationTime;
-                                                        }
-                                                    }
+                                    for(Path file: files) {
+                                        if(Files.isRegularFile(file)) {
+                                            if (file.startsWith(logFilePath.getFileName())) {
+                                                fileCount++;
+                                                BasicFileAttributes attributes = Files.readAttributes(file, BasicFileAttributes.class);
+                                                FileTime creationTime = attributes.creationTime();
+                                                // compare creation times
+                                                if(creationTime.compareTo(lastTimestamp) < 0) {
+                                                    //  notice the oldest log file
+                                                    oldestLogFilePath = file;
+                                                    lastTimestamp = creationTime;
                                                 }
-                                            }
-                                            // Closes this stream and releases any system resources associated with it.
-                                            try {
-                                                files.close();
-                                            } catch (IOException exception) {
-                                                if (Global.DEBUG) {
-                                                    exception.printStackTrace();
-                                                }
-                                            }
-                                            if (fileCount >= maxFileCount) {
-                                                // delete the oldest log file
-                                                if (oldestLogFilePath != null) {
-                                                    Files.delete(oldestLogFilePath);
-                                                }
-                                                // archive the last log file
-                                                LocalDate localDate = LocalDate.now();
-                                                DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-                                                String archiveLogFileName = this.logFilePath.getFileName().toString() + formatter.format(localDate);
-                                                Path archivePath = Paths.get(logFilePath.getParent().toString(), archiveLogFileName);
-                                                // if the new file exists, we write in old log file and try to rename later
-                                                if (!Files.exists(archivePath)) {
-                                                    Files.move(logFilePath,archivePath);
-                                                    createLogFile = true;
-                                                }
-                                            }
-                                            // we can create a new log file
-                                            createLogFile = true;
-                                        } catch (IOException exception) {
-                                            // if an operation failed, we write in old log file and try to rename later
-                                            if (Global.DEBUG) {
-                                                exception.printStackTrace();
                                             }
                                         }
                                     }
+                                    // Closes this stream and releases any system resources associated with it.
+                                    try {
+                                        files.close();
+                                    } catch (IOException exception) {
+                                        if (Global.DEBUG) {
+                                            exception.printStackTrace();
+                                        }
+                                    }
+                                    if (fileCount >= maxFileCount) {
+                                        // delete the oldest log file
+                                        if (oldestLogFilePath != null) {
+                                            Files.delete(oldestLogFilePath);
+                                        }
+                                        // archive the last log file
+                                        LocalDate localDate = LocalDate.now();
+                                        DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
+                                        String archiveLogFileName = this.logFilePath.getFileName().toString() + formatter.format(localDate);
+                                        Path archivePath = Paths.get(logFilePath.getParent().toString(), archiveLogFileName);
+                                        // if the new file exists, we write in old log file and try to rename later
+                                        if (!Files.exists(archivePath)) {
+                                            Files.move(logFilePath,archivePath);
+                                            createLogFile = true;
+                                        }
+                                    }
+                                    // we can create a new log file
+                                    createLogFile = true;
                                 } catch (IOException exception) {
-                                    // other file system errors -> no file logging available
+                                    // if an operation failed, we write in old log file and try to rename later
                                     if (Global.DEBUG) {
                                         exception.printStackTrace();
-                                        return false;
                                     }
                                 }
-                            } else {
-                                if (Global.DEBUG) {
-                                    System.out.println(logFilePath + " is not writeable! Disable logging to file.");
-                                }
+                            }
+                        } catch (IOException exception) {
+                            // other file system errors -> no file logging available
+                            if (Global.DEBUG) {
+                                exception.printStackTrace();
                                 return false;
                             }
-                        } else {
-                            if (Global.DEBUG) {
-                                System.out.println(logFilePath + " is a dir! Disable logging to file.");
-                            }
-                            return false;
                         }
-                    } else  {
-                        // we create a new log file
-                        createLogFile = true;
+                    } else {
+                        if (Global.DEBUG) {
+                            System.out.println(logFilePath + " is not writeable! Disable logging to file.");
+                        }
+                        return false;
                     }
                 } else {
-                    // directory not writeable
                     if (Global.DEBUG) {
-                        System.out.println(logDirPath + " is not writeable! Disable logging to file.");
+                        System.out.println(logFilePath + " is not a regular file! Disable logging to file.");
                     }
                     return false;
                 }
             } else {
-                // not a directory
+                // is a directory
                 if (Global.DEBUG) {
-                    System.out.println(logDirPath + " is a file! Disable logging to file.");
+                    System.out.println(logFilePath + " is a directory! Disable logging to file.");
                 }
                 return false;
             }
         } else {
             // create dir(s)
-            File logFileFolderStructure = new File(logDirPath.toString());
+            File logFileFolderStructure = new File(logFilePath.getParent().toString());
             try {
                 if (logFileFolderStructure.mkdirs()) {
                     createLogFile = true;

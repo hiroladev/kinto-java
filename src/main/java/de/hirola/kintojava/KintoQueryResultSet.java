@@ -86,6 +86,10 @@ public final class KintoQueryResultSet {
     public int getInt(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
+                // workaround "rowcount"
+                if (columnLabel.equalsIgnoreCase(Global.rowcountColumnName)) {
+                    return cursor.getCount();
+                }
                 return cursor.getInt(getColumnIndex(columnLabel));
             }
             throw new SQLException("Cursor must not be null.");
