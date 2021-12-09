@@ -1,5 +1,7 @@
 package de.hirola.kintojava.model;
 
+import org.jetbrains.annotations.NotNull;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -17,12 +19,12 @@ import java.util.UUID;
 public abstract class KintoObject implements KintoModel {
 
     // the kinto record object id
-    private String kintoID;
+    private final String kintoID;
     // the local (sqlite) id
-    private String uuid;
+    private final String uuid;
     // to prevent inconsistent datastore
-    private boolean isUseInRelation;
-    private long lastModified;
+    private final boolean isUseInRelation;
+    private final long lastModified;
 
     protected KintoObject() {
         kintoID = null;
@@ -35,7 +37,7 @@ public abstract class KintoObject implements KintoModel {
      *
      * @return the unique uid for the object
      */
-    public String getUUID() {
+    public @NotNull String getUUID() {
         return uuid;
     }
 

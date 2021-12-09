@@ -112,7 +112,12 @@ public final class DataSet {
             if (isKintoObject) {
                 // return the id of the object
                 KintoObject embeddedObject = (KintoObject) attributeField.get(forKintoObject);
-                valueForAttribute = embeddedObject.getUUID();
+                // embedded object can be null
+                if (embeddedObject == null) {
+                    valueForAttribute = "";
+                } else {
+                    valueForAttribute = embeddedObject.getUUID();
+                }
             } else if (attributeField.getType().getName().equalsIgnoreCase("java.time.LocalDate")) {
                 // return values as text (date in iso format
                 LocalDate date = (LocalDate) attributeField.get(forKintoObject);

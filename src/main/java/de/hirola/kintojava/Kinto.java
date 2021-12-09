@@ -199,35 +199,41 @@ public final class Kinto {
                                 Field embeddedObjectAttribute = type.getDeclaredField(attributeName);
                                 embeddedObjectAttribute.setAccessible(true);
                                 KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
-                                // get the uuid from embedded object
-                                String embeddedObjectUUID = embeddedObject.getUUID();
-                                // get the collection for the embedded object
-                                collectionFound = false;
-                                iterator = collections.stream().iterator();
-                                while (iterator.hasNext()) {
-                                    KintoCollection collection = iterator.next();
-                                    if (collection.getType().equals(embeddedObjectClazz)) {
-                                        collectionFound = true;
-                                        try {
-                                            embeddedObject = collection.findByUUID(embeddedObjectUUID);
-                                            if (embeddedObject == null) {
-                                                String errorMessage = "Cant' find the the embedded object with the UUID '"
-                                                        + type
-                                                        + "'.";
-                                                throw new KintoException(errorMessage);
+                                // embedded object can be null
+                                if (embeddedObject != null) {
+                                    // get the uuid from embedded object
+                                    String embeddedObjectUUID = embeddedObject.getUUID();
+                                    // get the collection for the embedded object
+                                    collectionFound = false;
+                                    iterator = collections.stream().iterator();
+                                    while (iterator.hasNext()) {
+                                        KintoCollection collection = iterator.next();
+                                        if (collection.getType().equals(embeddedObjectClazz)) {
+                                            collectionFound = true;
+                                            try {
+                                                assert embeddedObject != null;
+                                                if (embeddedObject.getUUID().length() > 0) {
+                                                    embeddedObject = collection.findByUUID(embeddedObjectUUID);
+                                                    if (embeddedObject == null) {
+                                                        String errorMessage = "Cant' find the the embedded object with the UUID '"
+                                                                + type
+                                                                + "'.";
+                                                        throw new KintoException(errorMessage);
+                                                    }
+                                                    // save the embedded object in kinto object
+                                                    embeddedObjectAttribute.set(kintoObject, embeddedObject);
+                                                }
+                                            } catch (KintoException exception) {
+                                                exception.printStackTrace();
                                             }
-                                            // save the embedded object in kinto object
-                                            embeddedObjectAttribute.set(kintoObject, embeddedObject);
-                                        } catch (KintoException exception) {
-                                            exception.printStackTrace();
                                         }
                                     }
-                                }
-                                if (!collectionFound) {
-                                    String errorMessage = "Cant' find the collection for the embedded object type "
-                                            + type
-                                            + ".";
-                                    throw new KintoException(errorMessage);
+                                    if (!collectionFound) {
+                                        String errorMessage = "Cant' find the collection for the embedded object type "
+                                                + type
+                                                + ".";
+                                        throw new KintoException(errorMessage);
+                                    }
                                 }
                             }
                             if (dataSet.isList()) {

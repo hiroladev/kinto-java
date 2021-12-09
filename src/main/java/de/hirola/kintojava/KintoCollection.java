@@ -144,12 +144,15 @@ public class KintoCollection {
                             Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
                             embeddedObjectAttribute.setAccessible(true);
                             KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
-                            // all objects in local datastore?
-                            if (isNewRecord(embeddedObject)) {
-                                String errorMessage = "The embedded object from type "
-                                        + embeddedObject.getClass().getSimpleName()
-                                        + " must exist in datastore before saving this object.";
-                                throw new KintoException(errorMessage);
+                            // embedded object can be null
+                            if (embeddedObject != null) {
+                                // all objects in local datastore?
+                                if (isNewRecord(embeddedObject)) {
+                                    String errorMessage = "The embedded object from type "
+                                            + embeddedObject.getClass().getSimpleName()
+                                            + " must exist in datastore before saving this object.";
+                                    throw new KintoException(errorMessage);
+                                }
                             }
                         }
                         // 1: m relations
@@ -894,7 +897,7 @@ public class KintoCollection {
         return false;
     }
 
-    private boolean isValidObjectType(KintoObject kintoObject) throws KintoException {
+    private boolean isValidObjectType(@NotNull KintoObject kintoObject) throws KintoException {
         // object from collection type?
         if (!kintoObject.getClass().equals(type)) {
             String errorMessage = "The object is not from type " + type.getSimpleName() + " .";
