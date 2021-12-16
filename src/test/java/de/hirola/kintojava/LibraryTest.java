@@ -9,7 +9,6 @@ import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -170,7 +169,7 @@ class LibraryTest {
             List<Address> adressList = customerWithAddresses.getAddressList();
             assertEquals(2, adressList.size());
             for (Address address : adressList) {
-                assertEquals(0, address.getStreet().length(), "Address has no values.");
+                assertTrue(address.getStreet().length() > 0, "Address has no values.");
             }
             // remove all data
             // kinto.clearLocalDataStore();
