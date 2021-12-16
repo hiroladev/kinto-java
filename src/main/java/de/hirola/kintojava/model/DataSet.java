@@ -77,7 +77,7 @@ public final class DataSet {
             isList = true;
         }
         // kinto object -> foreign key
-        if (hasKintoObjectAsSuperClass(attributeType)) {
+        if (haveAttributeKintoObjectAsSuperClass(attributeType)) {
             // "foreign key" classname+id
             sqlDataTypeString = "TEXT";
             isKintoObject = true;
@@ -173,7 +173,7 @@ public final class DataSet {
         return listType;
     }
 
-    public static boolean hasKintoObjectAsSuperClass(Class<?> type) {
+    public static boolean haveAttributeKintoObjectAsSuperClass(Class<?> type) {
         Class<?> superClass = type.getSuperclass();
         while (superClass != null) {
             type = superClass;

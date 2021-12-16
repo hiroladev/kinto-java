@@ -13,7 +13,7 @@ import java.util.UUID;
  * Objects can create, update and delete.
  *
  * @author Michael Schmidt (Hirola)
- * @since 0.1.0
+ * @since 1.1.1
  *
  */
 public abstract class KintoObject implements KintoModel {
@@ -24,12 +24,18 @@ public abstract class KintoObject implements KintoModel {
     private final String uuid;
     // to prevent inconsistent datastore
     private final boolean isUseInRelation;
+    // saved to local datastore
+    private final boolean isPersistent;
+    // synced to remote kinto?
+    private final boolean isSynced;
     private final long lastModified;
 
     protected KintoObject() {
         kintoID = null;
         uuid = UUID.randomUUID().toString().replace("-", "").toUpperCase();
         isUseInRelation = false;
+        isPersistent = false;
+        isSynced = false;
         lastModified = 0;
     }
 
@@ -55,6 +61,22 @@ public abstract class KintoObject implements KintoModel {
      */
     public boolean isUseInRelation() {
         return isUseInRelation;
+    }
+
+    /**
+     *
+     * @return <b>true</b>, if the object successfully saved in local datastore
+     */
+    public boolean isPersistent() {
+        return isPersistent;
+    }
+
+    /**
+     *
+     * @return <b>true</b>, if the object synced in a remote kinto
+     */
+    public boolean isSynced() {
+        return isSynced;
     }
 
     @Override

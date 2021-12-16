@@ -9,6 +9,8 @@ int person -> not ok
 variablenname <> sql commands
 Objects from type KintoObject
 
+Book has an author, but author do not have books (circle)
+
 Collection: Reflection - Columns speichern!
 
 SQL keywords for attributes, e.g. alter

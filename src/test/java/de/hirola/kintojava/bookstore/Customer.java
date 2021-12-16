@@ -3,6 +3,8 @@ package de.hirola.kintojava.bookstore;
 import de.hirola.kintojava.model.Persisted;
 import de.hirola.kintojava.model.PersistentObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -17,18 +19,22 @@ public class Customer extends PersistentObject {
     private String lastName;
     // 1:1 relation - one address
     @Persisted
-    private Address address;
+    private final List<Address> addressList;
 
     // we need a constructor for reflection
     public Customer() {
         customerID = UUID.randomUUID().toString();
+        firstName = "";
+        lastName = "";
+        addressList = new ArrayList<>();
     }
 
     public Customer(String firstName, String lastName, Address address) {
         customerID = UUID.randomUUID().toString();
         this.firstName = firstName;
         this.lastName = lastName;
-        this.address = address;
+        addressList = new ArrayList<>();
+        addressList.add(address);
     }
 
     public String getCustomerID() {
@@ -55,12 +61,14 @@ public class Customer extends PersistentObject {
         this.lastName = lastName;
     }
 
-    public Address getAddress() {
-        return address;
+    public List<Address> getAddressList() {
+        return addressList;
     }
 
-    public void setAddress(Address address) {
-        this.address = address;
+    public void addAddress(Address address) {
+        if (!addressList.contains(address)) {
+            addressList.add(address);
+        }
     }
 
     @Override
@@ -74,12 +82,11 @@ public class Customer extends PersistentObject {
         Customer customer = (Customer) o;
         return Objects.equals(customerID, customer.customerID)
                 && Objects.equals(firstName, customer.firstName)
-                && Objects.equals(lastName, customer.lastName)
-                && Objects.equals(address, customer.address);
+                && Objects.equals(lastName, customer.lastName);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(customerID, firstName, lastName, address);
+        return Objects.hash(customerID, firstName, lastName);
     }
 }

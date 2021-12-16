@@ -13,6 +13,8 @@ public class Book extends PersistentObject {
     @Persisted
     private String title;
     @Persisted
+    private Author author;
+    @Persisted
     private double price;
 
     // an unsaved attribute
@@ -22,12 +24,14 @@ public class Book extends PersistentObject {
     public Book() {
         isbn = "ISBN-";
         title = "The unwritten Book";
+        author = null;
         price = 10.99;
         numberInStock = 0;
     }
 
-    public Book(String isbn, String title, double price, int numberInStock) {
+    public Book(String isbn, String title, Author author, double price, int numberInStock) {
         this.isbn = isbn;
+        this.author = author;
         this.title = title;
         this.price = price;
         this.numberInStock = numberInStock;
@@ -47,6 +51,14 @@ public class Book extends PersistentObject {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public Author getAuthor() {
+        return author;
+    }
+
+    public void setAuthor(Author author) {
+        this.author = author;
     }
 
     public double getPrice() {

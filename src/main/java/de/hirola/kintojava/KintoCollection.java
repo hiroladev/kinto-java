@@ -285,6 +285,10 @@ public class KintoCollection {
                     }
                     // commit all statements
                     dataBase.commit();
+                    // set the flag for local persistence
+                    Field isPersistentAttribute = KintoObject.class.getDeclaredField("isPersistent");
+                    isPersistentAttribute.setAccessible(true);
+                    isPersistentAttribute.set(kintoObject, true);
                 } catch (SQLException exception) {
                     try {
                         // rollback all statements
@@ -308,6 +312,15 @@ public class KintoCollection {
                         exception.printStackTrace();
                     }
                     throw new KintoException(errorMessage);
+                } catch (NoSuchFieldException | IllegalAccessException exception) {
+                    String errorMessage = "Error occurred while set the flag 'isPersistent'"
+                            + exception.getMessage();
+                    if (loggerIsAvailable) {
+                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        exception.printStackTrace();
+                    }
                 } finally {
                     createRelationRecordSQLCommands.clear();
                 }
@@ -416,6 +429,10 @@ public class KintoCollection {
                                         // empty list
                                         deleteSQL.append("'');");
                                     }
+                                    // if the last attribute a list the remove the last comma
+                                    if(attributeCount == 0) {
+                                        updateSQL.deleteCharAt(updateSQL.lastIndexOf(","));
+                                    }
                                     try {
                                         // first delete
                                         dataBase.executeSQL(deleteSQL.toString());
@@ -445,7 +462,7 @@ public class KintoCollection {
                             // column (attribute) value
                             updateSQL.append(dataSet.getValueAsString(kintoObject));
                             updateSQL.append("'");
-                            if(attributeCount > 1) {
+                            if(attributeCount > 0) {
                                 updateSQL.append(",");
                             }
                         }
@@ -460,7 +477,7 @@ public class KintoCollection {
                     } catch (SQLException exception) {
                         // rollback all changes
                         dataBase.rollback();
-                        String errorMessage = "Error occurred while removing from local datastore: "
+                        String errorMessage = "Error occurred while updating the local datastore: "
                                 + exception.getMessage();
                         throw new KintoException(errorMessage);
                     }
@@ -677,6 +694,7 @@ public class KintoCollection {
             }
             if (resultSet.next()) {
                 // create object from this collection
+                KintoObject kintoObject = createObjectFromResultSet(resultSet);
                 return createObjectFromResultSet(resultSet);
             }
         } catch (SQLException exception) {
@@ -716,7 +734,7 @@ public class KintoCollection {
                         // get the class name of type in list (https://stackoverflow.com/questions/1942644/get-generic-type-of-java-util-list)
                         Class<?> listObjectClass = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
                         Class<?> attributeSuperClass = listObjectClass.getSuperclass();
-                        if (DataSet.hasKintoObjectAsSuperClass(attributeSuperClass)) {
+                        if (DataSet.haveAttributeKintoObjectAsSuperClass(attributeSuperClass)) {
                             String attributeDeclaringClassName = attribute.getDeclaringClass().getSimpleName();
                             String attributeClassName = listObjectClass.getSimpleName();
                             String relationTableName = attributeDeclaringClassName + "To" + attributeClassName;
@@ -942,14 +960,14 @@ public class KintoCollection {
         return true;
     }
 
-    private KintoObject createObjectFromResultSet(KintoQueryResultSet resultSet) throws KintoException {
+    private @NotNull KintoObject createObjectFromResultSet(KintoQueryResultSet resultSet) throws KintoException {
         try {
             // create object from local datastore using reflection
             Constructor<? extends KintoObject> constructor = type.getConstructor();
             KintoObject kintoObject = constructor.newInstance();
             // fields from KintoObject
             Class<?> clazz = kintoObject.getClass().getSuperclass();
-            if (!DataSet.hasKintoObjectAsSuperClass(clazz)) {
+            if (!DataSet.haveAttributeKintoObjectAsSuperClass(clazz)) {
                 throw new KintoException("The superclass of the object is not KintoObject.");
             }
             // set the uuid
@@ -968,7 +986,7 @@ public class KintoCollection {
                 if (dataSet.isKintoObject()) {
                     // 1:1 embedded object
                     // create an "empty" object with uuid
-                    if (!DataSet.hasKintoObjectAsSuperClass(attribute.getType())) {
+                    if (!DataSet.haveAttributeKintoObjectAsSuperClass(attribute.getType())) {
                         throw new KintoException("The superclass of the embedded object is not KintoObject.");
                     }
                     String embeddedKintoObjectUUID = resultSet.getString(attributeName);
@@ -1086,6 +1104,10 @@ public class KintoCollection {
                     attribute.set(kintoObject, value);
                 }
             }
+            // set the flag for local persistence
+            Field isPersistentAttribute = KintoObject.class.getDeclaredField("isPersistent");
+            isPersistentAttribute.setAccessible(true);
+            isPersistentAttribute.set(kintoObject, true);
             return kintoObject;
         } catch (NoSuchMethodException exception) {
             // constructor not found

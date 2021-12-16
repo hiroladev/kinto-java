@@ -142,13 +142,90 @@ public final class Kinto {
         }
     }
 
-    /**
-     *
-     * @param type searching for all kinto objects of this type (class)
-     * @return an (empty) list of kinto objects from type
-     * @throws KintoException if an error occurred while searching in local datastore
-     */
-    public List<? extends KintoObject> findAll(Class<? extends KintoObject> type) throws KintoException {
+    public KintoObject findByUUID(@NotNull Class<? extends KintoObject> type, String uuid) throws KintoException {
+        if (uuid == null || uuid.length() < 1) {
+            throw new KintoException("The uuid must be not null and greater than 0.");
+        }
+        if (isOpen()) {
+            // the kinto object for the given uuid
+            KintoObject kintoObject = null;
+            // create an object list with native attributes
+            boolean collectionFound = false;
+            Iterator<KintoCollection> iterator = collections.stream().iterator();
+            while (iterator.hasNext()) {
+                KintoCollection collection = iterator.next();
+                if (collection.getType().equals(type)) {
+                    collectionFound = true;
+                    try {
+                        // returns a kinto object
+                        // contains embedded objects with empty values
+                        kintoObject = collection.findByUUID(uuid);
+                        Field[] attributes = kintoObject.getClass().getDeclaredFields();
+                        Iterator<Field> fieldIterator = Arrays.stream(attributes).iterator();
+                        while (fieldIterator.hasNext()) {
+                            // 1:1 embedded attribute
+                            Field attribute = fieldIterator.next();
+                            Class<?> attributeType = attribute.getType();
+                            if (DataSet.haveAttributeKintoObjectAsSuperClass(attributeType)) {
+                                // get the uuid from embedded object
+                                attribute.setAccessible(true);
+                                KintoObject embeddedObject = (KintoObject) attribute.get(kintoObject);
+                                // check if object has values from datastore - have no null values
+                                if (!embeddedObject.isPersistent()) {
+                                    String embeddedObjectUUID = embeddedObject.getUUID();
+                                    // call this func recursive
+                                    // fill the "empty" object with values
+                                    embeddedObject = findByUUID((Class<? extends KintoObject>) attributeType, embeddedObjectUUID);
+                                    if (embeddedObject == null) {
+                                        throw new KintoException("An embedded object was not found in datastore.");
+                                    }
+                                }
+                                // update the enclosed object
+                                attribute.set(kintoObject, embeddedObject);
+                            }
+                            // 1:m embedded attributes
+                            if (attributeType.isAssignableFrom(List.class)) {
+                                attribute.setAccessible(true);
+                                ArrayList<?> arrayListObjects = (ArrayList<?>) attribute.get(kintoObject);
+                                for (Object arrayListObject : arrayListObjects) {
+                                    if (KintoObject.class.isAssignableFrom(arrayListObject.getClass())) {
+                                        // get the uuid from embedded object
+                                        attributeType = arrayListObject.getClass();
+                                        KintoObject embeddedObject = (KintoObject) arrayListObject;
+                                        if (!embeddedObject.isPersistent()) {
+                                            String embeddedObjectUUID = embeddedObject.getUUID();
+                                            // call this func recursive
+                                            // fill the "empty" object with values
+                                            embeddedObject = findByUUID((Class<? extends KintoObject>) attributeType, embeddedObjectUUID);
+                                            if (embeddedObject == null) {
+                                                throw new KintoException("An embedded object was not found in datastore.");
+                                            }
+                                        }
+                                        // update the enclosed object
+                                        attribute.set(kintoObject, embeddedObject);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (IllegalAccessException | IllegalArgumentException exception) {
+                        // TODO: Error Message
+                        throw new KintoException(exception);
+                    }
+                }
+            }
+            if (!collectionFound) {
+                String errorMessage = "Cant' find the collection for the object type "
+                        + type
+                        + ".";
+                throw new KintoException(errorMessage);
+            }
+            return kintoObject;
+        } else {
+            throw new KintoException("The local datastore is not available.");
+        }
+    }
+
+    public List<? extends KintoObject> findAll(@NotNull Class<? extends KintoObject> type) throws KintoException {
         if (isOpen()) {
             List<KintoObject> objects = new ArrayList<>();
             // the collection for the object class
@@ -189,7 +266,7 @@ public final class Kinto {
                                 // set the values
                                 // get the uuid from the "empty" embedded object
                                 Class<?> attributeType = attribute.getType();
-                                if (!DataSet.hasKintoObjectAsSuperClass(attributeType)) {
+                                if (!DataSet.haveAttributeKintoObjectAsSuperClass(attributeType)) {
                                     String errorMessage = "The object must extends KintoObject. This object extends "
                                             + attributeType.getName();
                                     throw new KintoException(errorMessage);
@@ -220,6 +297,7 @@ public final class Kinto {
                                                                 + "'.";
                                                         throw new KintoException(errorMessage);
                                                     }
+                                                    // the embedded object can have another embedded objects
                                                     // save the embedded object in kinto object
                                                     embeddedObjectAttribute.set(kintoObject, embeddedObject);
                                                 }
