@@ -169,7 +169,7 @@ class LibraryTest {
             List<Address> adressList = customerWithAddresses.getAddressList();
             assertEquals(2, adressList.size());
             for (Address address : adressList) {
-                assertFalse(address.getStreet().isEmpty(), "Address has no values");
+                assertTrue(address.isPersistent(), "Address has no values");
             }
             // remove all data
             // kinto.clearLocalDataStore();

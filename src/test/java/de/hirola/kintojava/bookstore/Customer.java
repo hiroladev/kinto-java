@@ -19,7 +19,7 @@ public class Customer extends PersistentObject {
     private String lastName;
     // 1:1 relation - one address
     @Persisted
-    private final List<Address> addressList;
+    private List<Address> addressList;
 
     // we need a constructor for reflection
     public Customer() {
