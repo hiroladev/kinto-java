@@ -467,7 +467,9 @@ public class KintoCollection {
                             }
                         }
                     }
-                    updateSQL.append(";");
+                    updateSQL.append(" WHERE uuid='");
+                    updateSQL.append(kintoObject.getUUID());
+                    updateSQL.append("';");
                     try {
                         // remove the object from local datastore
                         dataBase.executeSQL(updateSQL.toString());

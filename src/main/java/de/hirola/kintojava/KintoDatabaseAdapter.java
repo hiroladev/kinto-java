@@ -37,6 +37,9 @@ public class KintoDatabaseAdapter {
     }
 
     public void executeSQL(String sql) throws SQLException {
+        if (Global.DEBUG_SQL) {
+            System.out.println(sql);
+        }
         if (isRunningOnAndroid) {
             // Android
             androidDatabase.execSQL(sql);
@@ -47,6 +50,9 @@ public class KintoDatabaseAdapter {
     }
 
     public KintoQueryResultSet executeQuery(String sql) throws SQLException {
+        if (Global.DEBUG_SQL) {
+            System.out.println(sql);
+        }
         if (isRunningOnAndroid) {
             // Android
             //  SQL string must not be ; terminated
