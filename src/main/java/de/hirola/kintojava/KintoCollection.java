@@ -380,6 +380,10 @@ public class KintoCollection {
                                 // the name of the relation table
                                 deleteSQL.append(relationTable);
                                 deleteSQL.append(" WHERE ");
+                                deleteSQL.append(getName().toLowerCase(Locale.ROOT));
+                                deleteSQL.append("uuid='");
+                                deleteSQL.append(kintoObject.getUUID());
+                                deleteSQL.append("' AND ");
                                 // all uuid from objects in list
                                 deleteSQL.append(listObjectType.getSimpleName().toLowerCase(Locale.ROOT));
                                 deleteSQL.append("uuid NOT IN (");
@@ -396,9 +400,9 @@ public class KintoCollection {
                                             }
                                             KintoObject listKintoObject = (KintoObject) listObject;
                                             // build sql insert command for relation table - using
-                                            // REPLACE INTO table(column_list) VALUES(value_list);
+                                            // INSERT INTO table(column_list) VALUES(value_list);
                                             // the name of the relation table
-                                            String replaceRelationSQL = "REPLACE INTO " + relationTable +
+                                            String replaceRelationSQL = "INSERT INTO " + relationTable +
                                                     // columns
                                                     " (" +
                                                     getName().toLowerCase(Locale.ROOT) +

@@ -15,7 +15,7 @@ public final class Global {
     // enable / disable debug mode
     public static final boolean DEBUG = true;
     // enable / disable debug mode for sql
-    public static final boolean DEBUG_SQL = false;
+    public static final boolean DEBUG_SQL = true;
     // workaround for "rowcount"
     // with sqlite jdbc the cursor can only forward
     public static final String rowcountColumnName = "rowcount";
