@@ -127,6 +127,14 @@ public final class DataSet {
                     // set a default value
                     valueForAttribute = "1971-11-07";
                 }
+            } else if (attributeField.getType().getSimpleName().equalsIgnoreCase("boolean")){
+                // return value for boolean, 0 = false / 1 = true
+                String value = String.valueOf(attributeField.get(forKintoObject));
+                if (value.equalsIgnoreCase("true")) {
+                    valueForAttribute = String.valueOf(1);
+                } else {
+                    valueForAttribute = String.valueOf(0);
+                }
             } else {
                 // return value for simple data type
                 valueForAttribute = String.valueOf(attributeField.get(forKintoObject));

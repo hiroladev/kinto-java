@@ -28,8 +28,9 @@ class LibraryTest {
         // an address
         Address address = new Address("Street",1, "Place", "081547711");
         // list of customers
-        Customer customer1 = new Customer("Adam","Customer",address);
-        Customer customer2 = new Customer("Eva","Customer",address);
+        // an embedded kinto object (author) can be null: no favorite author is set
+        Customer customer1 = new Customer("Adam","Customer", true, address);
+        Customer customer2 = new Customer("Eva","Customer", false ,address);
         List<Customer> customers = new ArrayList<>();
         customers.add(customer1);
         customers.add(customer2);
@@ -66,16 +67,23 @@ class LibraryTest {
 
             // test simple objects
             List<? extends KintoObject> availableBooks = kinto.findAll(Book.class);
-            assertEquals(2,availableBooks.size());
+            assertEquals(2, availableBooks.size());
 
             // test 1:1 objects
-            // 3 customer with 1 address
+            // 3 customer with 1 address, 1 customer with favorite author
             // a customer without store
-            Customer customer3 = new Customer("Ben","Alone",address);
+            Customer customer3 = new Customer("Ben","Alone", true, address);
+            // add to datastore
             kinto.add(customer3);
+            // add favorite author
+            customer3.setFavoriteAuthor(author1);
+            kinto.update(customer3);
             List<? extends KintoObject> allCustomers = kinto.findAll(Customer.class);
             assertEquals(3, allCustomers.size());
-
+            // get the customer with favorite author
+            KintoObject kintoObject = kinto.findByUUID(Customer.class, customer3.getUUID());
+            assertNotNull(kintoObject, "The object was not found in local datastore.");
+            assertNotNull(((Customer) kintoObject).getFavoriteAuthor());
             // test 1:m objects
             // 1 book store with 2 books and 2 customers
             List<? extends KintoObject> bookStores = kinto.findAll(Store.class);
@@ -115,7 +123,7 @@ class LibraryTest {
         Address address1 = new Address("Street",1, "Place", "081547711");
         Address address2 = new Address("Way",154, "An other Place", "98765");
         // a customer with 2 addresses
-        Customer customer1 = new Customer("Adam","Customer",address1);
+        Customer customer1 = new Customer("Adam","Customer", true, address1);
         customer1.addAddress(address2);
         // list of customers
         List<Customer> customers = new ArrayList<>();

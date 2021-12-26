@@ -17,6 +17,10 @@ public class Customer extends PersistentObject {
     private String firstName;
     @Persisted
     private String lastName;
+    @Persisted
+    private boolean hasBonus;
+    @Persisted
+    private Author favoriteAuthor;
     // 1:1 relation - one address
     @Persisted
     private List<Address> addressList;
@@ -26,13 +30,17 @@ public class Customer extends PersistentObject {
         customerID = UUID.randomUUID().toString();
         firstName = "";
         lastName = "";
+        hasBonus = false;
+        favoriteAuthor = null;
         addressList = new ArrayList<>();
     }
 
-    public Customer(String firstName, String lastName, Address address) {
+    public Customer(String firstName, String lastName, boolean hasBonus, Address address) {
         customerID = UUID.randomUUID().toString();
         this.firstName = firstName;
         this.lastName = lastName;
+        this.hasBonus = hasBonus;
+        favoriteAuthor = null;
         addressList = new ArrayList<>();
         addressList.add(address);
     }
@@ -61,6 +69,14 @@ public class Customer extends PersistentObject {
         this.lastName = lastName;
     }
 
+    public boolean isHasBonus() {
+        return hasBonus;
+    }
+
+    public void setHasBonus(boolean hasBonus) {
+        this.hasBonus = hasBonus;
+    }
+
     public List<Address> getAddressList() {
         return addressList;
     }
@@ -69,6 +85,14 @@ public class Customer extends PersistentObject {
         if (!addressList.contains(address)) {
             addressList.add(address);
         }
+    }
+
+    public Author getFavoriteAuthor() {
+        return favoriteAuthor;
+    }
+
+    public void setFavoriteAuthor(Author favoriteAuthor) {
+        this.favoriteAuthor = favoriteAuthor;
     }
 
     @Override

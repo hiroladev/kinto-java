@@ -990,34 +990,37 @@ public class KintoCollection {
                         throw new KintoException("The superclass of the embedded object is not KintoObject.");
                     }
                     String embeddedKintoObjectUUID = resultSet.getString(attributeName);
-                    // create embedded object using reflection
-                    //noinspection unchecked
-                    constructor = (Constructor<? extends KintoObject>) attribute.getType().getConstructor();
-                    KintoObject embeddedKintoObject = constructor.newInstance();
-                    // fields from KintoObject
-                    uuid.set(embeddedKintoObject, embeddedKintoObjectUUID);
-                    // set the use in relation flag
-                    try {
-                        Field attributeField = KintoObject.class.getDeclaredField("isUseInRelation");
-                        attributeField.setAccessible(true);
-                        attributeField.set(embeddedKintoObject, true);
-                    } catch (NoSuchFieldException exception) {
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
+                    if (embeddedKintoObjectUUID.length() > 0) {
+                        // embedded object can be null
+                        // create embedded object using reflection
+                        //noinspection unchecked
+                        constructor = (Constructor<? extends KintoObject>) attribute.getType().getConstructor();
+                        KintoObject embeddedKintoObject = constructor.newInstance();
+                        // fields from KintoObject
+                        uuid.set(embeddedKintoObject, embeddedKintoObjectUUID);
+                        // set the use in relation flag
+                        try {
+                            Field attributeField = KintoObject.class.getDeclaredField("isUseInRelation");
+                            attributeField.setAccessible(true);
+                            attributeField.set(embeddedKintoObject, true);
+                        } catch (NoSuchFieldException exception) {
+                            if (Global.DEBUG) {
+                                exception.printStackTrace();
+                            }
+                            String errorMessage = "The attribute field 'isUseInRelation' wasn't found: "
+                                    + exception;
+                            throw new KintoException(errorMessage);
+                        } catch (IllegalAccessException exception) {
+                            if (Global.DEBUG) {
+                                exception.printStackTrace();
+                            }
+                            String errorMessage = "The value of attribute field 'isUseInRelation' couldn't set: "
+                                    + exception;
+                            throw new KintoException(errorMessage);
                         }
-                        String errorMessage = "The attribute field 'isUseInRelation' wasn't found: "
-                                + exception;
-                        throw new KintoException(errorMessage);
-                    } catch (IllegalAccessException exception) {
-                        if (Global.DEBUG) {
-                            exception.printStackTrace();
-                        }
-                        String errorMessage = "The value of attribute field 'isUseInRelation' couldn't set: "
-                                + exception;
-                        throw new KintoException(errorMessage);
+                        // add the embedded object
+                        value = embeddedKintoObject;
                     }
-                    // add the embedded object
-                    value = embeddedKintoObject;
                 } else if (dataSet.isList()) {
                     // 1:m embedded object(s)
                     // create "empty" object(s) with uuid

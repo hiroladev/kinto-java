@@ -142,8 +142,16 @@ public final class Kinto {
         }
     }
 
-    public KintoObject findByUUID(@NotNull Class<? extends KintoObject> type, String uuid) throws KintoException {
-        if (uuid == null || uuid.length() < 1) {
+    /**
+     * Get an object from datastore with given type and uuid. The object can be null, if the object could not found.
+     *
+     * @param type the type og object
+     * @param uuid  the uuid of the object
+     * @return an object from datastore wih given uuid or null, if the object was not found in local datastore
+     * @throws KintoException if the length of uuid is 0 or an exception occurred while getting object from datastore
+     */
+    public KintoObject findByUUID(@NotNull Class<? extends KintoObject> type, @NotNull String uuid) throws KintoException {
+        if (uuid.length() == 0) {
             throw new KintoException("The uuid must be not null and greater than 0.");
         }
         if (isOpen()) {
@@ -171,7 +179,7 @@ public final class Kinto {
                                 attribute.setAccessible(true);
                                 KintoObject embeddedObject = (KintoObject) attribute.get(kintoObject);
                                 // check if object has values from datastore - have no null values
-                                if (!embeddedObject.isPersistent()) {
+                                if (embeddedObject != null) {
                                     String embeddedObjectUUID = embeddedObject.getUUID();
                                     // call this func recursive
                                     // fill the "empty" object with values
