@@ -101,6 +101,24 @@ public final class KintoQueryResultSet {
         }
     }
 
+    public long getLong(String columnLabel) throws SQLException {
+        if (isRunningOnAndroid) {
+            if (cursor != null) {
+                // workaround "rowcount"
+                if (columnLabel.equalsIgnoreCase(Global.rowcountColumnName)) {
+                    return cursor.getCount();
+                }
+                return cursor.getLong(getColumnIndex(columnLabel));
+            }
+            throw new SQLException("Cursor must not be null.");
+        } else {
+            if (resultSet != null) {
+                return resultSet.getLong(columnLabel);
+            }
+            throw new SQLException("ResultSet must not be null.");
+        }
+    }
+
     public double getDouble(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {

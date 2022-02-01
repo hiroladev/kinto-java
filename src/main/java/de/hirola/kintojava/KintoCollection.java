@@ -1093,6 +1093,9 @@ public class KintoCollection {
                         case "int":
                             value = resultSet.getInt(attributeName);
                             break;
+                        case "long":
+                            value = resultSet.getLong(attributeName);
+                            break;
                         case "float":
                             value = resultSet.getFloat(attributeName);
                             break;

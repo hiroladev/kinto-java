@@ -7,6 +7,8 @@ import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 import java.time.DateTimeException;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
@@ -46,9 +48,11 @@ public final class DataSet {
         DATA_MAPPINGS.put("java.lang.String", "TEXT");
         DATA_MAPPINGS.put("boolean", "NUMERIC");
         DATA_MAPPINGS.put("int", "INTEGER");
+        DATA_MAPPINGS.put("long", "INTEGER");
         DATA_MAPPINGS.put("float", "REAL");
         DATA_MAPPINGS.put("double", "REAL");
         DATA_MAPPINGS.put("java.time.LocalDate", "TEXT");
+        DATA_MAPPINGS.put("java.time.LocalDateTime", "NUMERIC");
         DATA_MAPPINGS.put("java.util.List", "RELATION");
     }
 
@@ -119,13 +123,25 @@ public final class DataSet {
                     valueForAttribute = embeddedObject.getUUID();
                 }
             } else if (attributeField.getType().getName().equalsIgnoreCase("java.time.LocalDate")) {
-                // return values as text (date in iso format
+                // return values as text (date in iso format)
                 LocalDate date = (LocalDate) attributeField.get(forKintoObject);
                 try {
                     valueForAttribute = date.format(DateTimeFormatter.ISO_DATE);
                 } catch (DateTimeException exception) {
                     // set a default value
                     valueForAttribute = "1971-11-07";
+                }
+            } else if (attributeField.getType().getName().equalsIgnoreCase("java.time.LocalDateTime")) {
+                // return values as text (time in milli)
+                LocalDateTime time = (LocalDateTime) attributeField.get(forKintoObject);
+                try {
+                    valueForAttribute = String.valueOf(time
+                                                        .atZone(ZoneId.systemDefault())
+                                                        .toInstant()
+                                                        .toEpochMilli());
+                } catch (DateTimeException exception) {
+                    // set a default value
+                    valueForAttribute = "0";
                 }
             } else if (attributeField.getType().getSimpleName().equalsIgnoreCase("boolean")){
                 // return value for boolean, 0 = false / 1 = true
