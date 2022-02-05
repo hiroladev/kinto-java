@@ -14,9 +14,14 @@ Usage
 
 You can find a sample in package de.hirola.kintojava.bookstore.StoreTest.
 
-1.  Download the library kinto-jar-(VERSION).jar from XX and append the jar to the classpath.
-2.  Download the library sqlite-jdbc-(VERSION).jar from the [download page](https://github.com/xerial/sqlite-jdbc/releases) and add the file to the classpath.
-
+The library is available from Maven:
+```
+<dependency>
+<groupId>de.hirola</groupId>
+<artifactId>kintojava</artifactId>
+<version>1.1.1-SNAPSHOT</version>
+</dependency>
+```
 
 **Sample.java**
 
