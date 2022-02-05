@@ -86,247 +86,247 @@ public class KintoCollection {
     }
 
     public void addRecord(KintoObject kintoObject) throws KintoException {
+        // object already saved
+        if (kintoObject.isPersistent()) {
+            // update
+            updateRecord(kintoObject);
+            return;
+        }
         // object from collection type?
         if (isValidObjectType(kintoObject)) {
-            // insert or update?
-            if (isNewRecord(kintoObject)) {
-                // building sql insert command for the kinto object of this collection
-                // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
-                StringBuilder createRecordSQL = new StringBuilder("INSERT INTO ");
-                // the name of the collection (table)
-                createRecordSQL.append(getName());
-                // attributes = columns
-                // build a map with attribute and value
-                createRecordSQL.append(" (uuid, kintoid, usn");
-                // all attributes -> columns
-                StringBuilder valuesString = new StringBuilder(") VALUES(");
-                //  primary key from uuid
-                valuesString.append("'");
-                valuesString.append(kintoObject.getUUID());
-                // kinto record id later from sync
-                // usn = 0 on insert
-                valuesString.append("','', 0");
-                for (String attributeName : storableAttributes.keySet()) {
+            // building sql insert command for the kinto object of this collection
+            // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
+            StringBuilder createRecordSQL = new StringBuilder("INSERT INTO ");
+            // the name of the collection (table)
+            createRecordSQL.append(getName());
+            // attributes = columns
+            // build a map with attribute and value
+            createRecordSQL.append(" (uuid, kintoid, usn");
+            // all attributes -> columns
+            StringBuilder valuesString = new StringBuilder(") VALUES(");
+            //  primary key from uuid
+            valuesString.append("'");
+            valuesString.append(kintoObject.getUUID());
+            // kinto record id later from sync
+            // usn = 0 on insert
+            valuesString.append("','', 0");
+            for (String attributeName : storableAttributes.keySet()) {
+                DataSet dataSet = storableAttributes.get(attributeName);
+                if (dataSet == null) {
+                    String errorMessage = "Empty dataset for attribute "
+                            + attributeName
+                            + ".";
+                    throw new KintoException(errorMessage);
+                }
+                String sqlDataTypeString = dataSet.getSqlDataTypeString();
+                // 1:m relations in extra tables
+                if (!sqlDataTypeString.equalsIgnoreCase(DataSet.RELATION_DATA_MAPPING_STRING)) {
+                    createRecordSQL.append(", ");
+                    valuesString.append(", ");
+                    createRecordSQL.append(attributeName);
+                    valuesString.append("'");
+                    valuesString.append(dataSet.getValueAsString(kintoObject));
+                    valuesString.append("'");
+                }
+            }
+            createRecordSQL.append(valuesString);
+            createRecordSQL.append(");");
+            // all embedded kinto objects (all list attributes) for the kinto object
+            ArrayList<KintoObject> useInRelationObjects = new ArrayList<>();
+            // building sql insert command for the embedded kinto object of this collection (1:m relations)
+            // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
+            ArrayList<String> createRelationRecordSQLCommands = new ArrayList<>();
+            String attributeName = "";
+            try {
+                for (String key : storableAttributes.keySet()) {
+                    attributeName = key;
                     DataSet dataSet = storableAttributes.get(attributeName);
-                    if (dataSet == null) {
-                        String errorMessage = "Empty dataset for attribute "
-                                + attributeName
-                                + ".";
-                        throw new KintoException(errorMessage);
-                    }
-                    String sqlDataTypeString = dataSet.getSqlDataTypeString();
-                    // 1:m relations in extra tables
-                    if (!sqlDataTypeString.equalsIgnoreCase(DataSet.RELATION_DATA_MAPPING_STRING)) {
-                        createRecordSQL.append(", ");
-                        valuesString.append(", ");
-                        createRecordSQL.append(attributeName);
-                        valuesString.append("'");
-                        valuesString.append(dataSet.getValueAsString(kintoObject));
-                        valuesString.append("'");
-                    }
-                }
-                createRecordSQL.append(valuesString);
-                createRecordSQL.append(");");
-                // all embedded kinto objects (all list attributes) for the kinto object
-                ArrayList<KintoObject> useInRelationObjects = new ArrayList<>();
-                // building sql insert command for the embedded kinto object of this collection (1:m relations)
-                // INSERT INTO table (column1,column2 ,..) VALUES( value1,	value2 ,...);
-                ArrayList<String> createRelationRecordSQLCommands = new ArrayList<>();
-                String attributeName = "";
-                try {
-                    for (String key : storableAttributes.keySet()) {
-                        attributeName = key;
-                        DataSet dataSet = storableAttributes.get(attributeName);
-                        // get attributes using reflection
-                        Class<? extends KintoObject> clazz = kintoObject.getClass();
-                        // 1. 1:1 relations
-                        if (dataSet.isKintoObject()) {
-                            Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
-                            embeddedObjectAttribute.setAccessible(true);
-                            KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
-                            // embedded object can be null
-                            if (embeddedObject != null) {
-                                // all objects in local datastore?
-                                if (isNewRecord(embeddedObject)) {
-                                    String errorMessage = "The embedded object from type "
-                                            + embeddedObject.getClass().getSimpleName()
-                                            + " must exist in datastore before saving this object.";
-                                    throw new KintoException(errorMessage);
-                                }
+                    // get attributes using reflection
+                    Class<? extends KintoObject> clazz = kintoObject.getClass();
+                    // 1. 1:1 relations
+                    if (dataSet.isKintoObject()) {
+                        Field embeddedObjectAttribute = clazz.getDeclaredField(attributeName);
+                        embeddedObjectAttribute.setAccessible(true);
+                        KintoObject embeddedObject = (KintoObject) embeddedObjectAttribute.get(kintoObject);
+                        // embedded object can be null
+                        if (embeddedObject != null) {
+                            // all objects in local datastore?
+                            if (!embeddedObject.isPersistent()) {
+                                String errorMessage = "The embedded object from type "
+                                        + embeddedObject.getClass().getSimpleName()
+                                        + " must exist in datastore before saving this object.";
+                                throw new KintoException(errorMessage);
                             }
                         }
-                        // 1: m relations
-                        if (dataSet.isList()) {
-                            // check if relation table exist
-                            Class<? extends KintoObject> listObjectType = dataSet.getListType();
-                            if (type != null){
-                                // add for all embedded kinto objects an entry in relation table
-                                String relationTable = relationTables.get(dataSet.getAttribute());
-                                if (relationTable == null) {
-                                    String errorMessage = "The relation table of "
-                                            + listObjectType.getSimpleName()
-                                            + " was not found in configuration.";
-                                    throw  new KintoException(errorMessage);
-                                }
-                                Field listAttribute = clazz.getDeclaredField(attributeName);
-                                listAttribute.setAccessible(true);
-                                Object listAttributeObject = listAttribute.get(kintoObject);
-                                if (listAttributeObject instanceof List) {
-                                    List<?> listObjects = (List<?>) listAttributeObject;
-                                    for (Object listObject : listObjects) {
-                                        if (!KintoObject.class.isAssignableFrom(listObject.getClass())) {
-                                            String errorMessage = "The object must extends KintoObject. This object extends "
-                                                    + listObject.getClass().getName();
-                                            throw new KintoException(errorMessage);
-                                        }
-                                        KintoObject listKintoObject = (KintoObject) listObject;
-                                        // all objects in local datastore?
-                                        if (isNewRecord(listKintoObject)) {
-                                            String errorMessage = "The embedded object from type "
-                                                    + listKintoObject.getClass().getSimpleName()
-                                                    + " must exist in datastore before saving this object.";
-                                            throw new KintoException(errorMessage);
-                                        }
-                                        // build sql insert command(s)
-                                        // the name of the relation table
-                                        String sql = "INSERT INTO " + relationTable +
-                                                " (" +
-                                                // first the object type uuid
-                                                getName().toLowerCase(Locale.ROOT) +
-                                                "uuid, " +
-                                                // then the attribute type name
-                                                listObjectType.getSimpleName().toLowerCase(Locale.ROOT) +
-                                                "uuid) VALUES('" +
-                                                kintoObject.getUUID() +
-                                                "', '" +
-                                                listKintoObject.getUUID() +
-                                                "');";
-                                        // add to the sql command list
-                                        createRelationRecordSQLCommands.add(sql);
-                                        // add the object to the "global" list
-                                        useInRelationObjects.add(listKintoObject);
+                    }
+                    // 1: m relations
+                    if (dataSet.isList()) {
+                        // check if relation table exist
+                        Class<? extends KintoObject> listObjectType = dataSet.getListType();
+                        if (type != null){
+                            // add for all embedded kinto objects an entry in relation table
+                            String relationTable = relationTables.get(dataSet.getAttribute());
+                            if (relationTable == null) {
+                                String errorMessage = "The relation table of "
+                                        + listObjectType.getSimpleName()
+                                        + " was not found in configuration.";
+                                throw  new KintoException(errorMessage);
+                            }
+                            Field listAttribute = clazz.getDeclaredField(attributeName);
+                            listAttribute.setAccessible(true);
+                            Object listAttributeObject = listAttribute.get(kintoObject);
+                            if (listAttributeObject instanceof List) {
+                                List<?> listObjects = (List<?>) listAttributeObject;
+                                for (Object listObject : listObjects) {
+                                    if (!KintoObject.class.isAssignableFrom(listObject.getClass())) {
+                                        String errorMessage = "The object must extends KintoObject. This object extends "
+                                                + listObject.getClass().getName();
+                                        throw new KintoException(errorMessage);
                                     }
+                                    KintoObject listKintoObject = (KintoObject) listObject;
+                                    // all objects in local datastore?
+                                    if (!listKintoObject.isPersistent()) {
+                                        String errorMessage = "The embedded object from type "
+                                                + listKintoObject.getClass().getSimpleName()
+                                                + " must exist in datastore before saving this object.";
+                                        throw new KintoException(errorMessage);
+                                    }
+                                    // build sql insert command(s)
+                                    // the name of the relation table
+                                    String sql = "INSERT INTO " + relationTable +
+                                            " (" +
+                                            // first the object type uuid
+                                            getName().toLowerCase(Locale.ROOT) +
+                                            "uuid, " +
+                                            // then the attribute type name
+                                            listObjectType.getSimpleName().toLowerCase(Locale.ROOT) +
+                                            "uuid) VALUES('" +
+                                            kintoObject.getUUID() +
+                                            "', '" +
+                                            listKintoObject.getUUID() +
+                                            "');";
+                                    // add to the sql command list
+                                    createRelationRecordSQLCommands.add(sql);
+                                    // add the object to the "global" list
+                                    useInRelationObjects.add(listKintoObject);
                                 }
                             }
                         }
                     }
-                } catch (NoSuchFieldException exception) {
-                    String errorMessage = "Can't get the attribute "
-                            + attributeName
-                            + " using reflection: "
-                            + exception.getMessage();
-                    if (loggerIsAvailable) {
-                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                    throw new KintoException(errorMessage);
-                } catch (IllegalAccessException exception) {
-                    String errorMessage = "Getting value for attribute "
-                            + attributeName
-                            + " using reflection failed: "
-                            + exception.getMessage();
-                    if (loggerIsAvailable) {
-                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                    throw new KintoException(errorMessage);
                 }
-                try {
-                    // execute the sql commands
-                    // use transaction for all statements
-                    dataBase.beginTransaction();
-                    // create entry in collection table
-                    dataBase.executeSQL(createRecordSQL.toString());
-                    // create relation table entries
-                    if (createRelationRecordSQLCommands.size() > 0) {
-                        for (String createRelationRecordSQLCommand : createRelationRecordSQLCommands) {
-                            dataBase.executeSQL(createRelationRecordSQLCommand);
-                        }
+            } catch (NoSuchFieldException exception) {
+                String errorMessage = "Can't get the attribute "
+                        + attributeName
+                        + " using reflection: "
+                        + exception.getMessage();
+                if (loggerIsAvailable) {
+                    kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                }
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+                throw new KintoException(errorMessage);
+            } catch (IllegalAccessException exception) {
+                String errorMessage = "Getting value for attribute "
+                        + attributeName
+                        + " using reflection failed: "
+                        + exception.getMessage();
+                if (loggerIsAvailable) {
+                    kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                }
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+                throw new KintoException(errorMessage);
+            }
+            try {
+                // execute the sql commands
+                // use transaction for all statements
+                dataBase.beginTransaction();
+                // create entry in collection table
+                dataBase.executeSQL(createRecordSQL.toString());
+                // create relation table entries
+                if (createRelationRecordSQLCommands.size() > 0) {
+                    for (String createRelationRecordSQLCommand : createRelationRecordSQLCommands) {
+                        dataBase.executeSQL(createRelationRecordSQLCommand);
                     }
-                    // set the flag for used in relation
-                    for(KintoObject useInRelationObject : useInRelationObjects) {
-                        try {
-                            Field attributeField = KintoObject.class.getDeclaredField("isUseInRelation");
-                            attributeField.setAccessible(true);
-                            attributeField.set(useInRelationObject, true);
-                        } catch (NoSuchFieldException exception) {
-                            // rollback all statements
-                            dataBase.rollback();
-                            String errorMessage = "Can't determine the attribute 'isUseInRelation' for object "
-                                    + useInRelationObject.toString()
-                                    + " : "
-                                    + exception.getMessage();
-                            if (loggerIsAvailable) {
-                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                            }
-                            if (Global.DEBUG) {
-                                exception.printStackTrace();
-                            }
-                            throw new KintoException(errorMessage);
-                        } catch (IllegalAccessException exception) {
-                            // rollback all statements
-                            dataBase.rollback();
-                            String errorMessage = "Can't set the attribute 'isUseInRelation' for object "
-                                    + useInRelationObject.toString()
-                                    + " using reflection: "
-                                    + exception.getMessage();
-                            if (loggerIsAvailable) {
-                                kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                            }
-                            if (Global.DEBUG) {
-                                exception.printStackTrace();
-                            }
-                            throw new KintoException(errorMessage);
-                        }
-                    }
-                    // commit all statements
-                    dataBase.commit();
-                    // set the flag for local persistence
-                    Field isPersistentAttribute = KintoObject.class.getDeclaredField("isPersistent");
-                    isPersistentAttribute.setAccessible(true);
-                    isPersistentAttribute.set(kintoObject, true);
-                } catch (SQLException exception) {
+                }
+                // set the flag for used in relation
+                for(KintoObject useInRelationObject : useInRelationObjects) {
                     try {
+                        Field attributeField = KintoObject.class.getDeclaredField("isUseInRelation");
+                        attributeField.setAccessible(true);
+                        attributeField.set(useInRelationObject, true);
+                    } catch (NoSuchFieldException exception) {
                         // rollback all statements
                         dataBase.rollback();
-                    } catch (SQLException e) {
+                        String errorMessage = "Can't determine the attribute 'isUseInRelation' for object "
+                                + useInRelationObject.toString()
+                                + " : "
+                                + exception.getMessage();
                         if (loggerIsAvailable) {
-                            String errorMessage = "Save and rollback failed, inconsistent data are possible: "
-                                    + exception.getMessage();
                             kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
                         }
                         if (Global.DEBUG) {
-                            e.printStackTrace();
+                            exception.printStackTrace();
                         }
+                        throw new KintoException(errorMessage);
+                    } catch (IllegalAccessException exception) {
+                        // rollback all statements
+                        dataBase.rollback();
+                        String errorMessage = "Can't set the attribute 'isUseInRelation' for object "
+                                + useInRelationObject.toString()
+                                + " using reflection: "
+                                + exception.getMessage();
+                        if (loggerIsAvailable) {
+                            kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                        }
+                        if (Global.DEBUG) {
+                            exception.printStackTrace();
+                        }
+                        throw new KintoException(errorMessage);
                     }
-                    String errorMessage = "Saving the object failed: "
-                            + exception.getMessage();
-                    if (loggerIsAvailable) {
-                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                    throw new KintoException(errorMessage);
-                } catch (NoSuchFieldException | IllegalAccessException exception) {
-                    String errorMessage = "Error occurred while set the flag 'isPersistent'"
-                            + exception.getMessage();
-                    if (loggerIsAvailable) {
-                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
-                    }
-                    if (Global.DEBUG) {
-                        exception.printStackTrace();
-                    }
-                } finally {
-                    createRelationRecordSQLCommands.clear();
                 }
-            } else {
-                // update
-                updateRecord(kintoObject);
+                // commit all statements
+                dataBase.commit();
+                // set the flag for local persistence
+                Field isPersistentAttribute = KintoObject.class.getDeclaredField("isPersistent");
+                isPersistentAttribute.setAccessible(true);
+                isPersistentAttribute.set(kintoObject, true);
+            } catch (SQLException exception) {
+                try {
+                    // rollback all statements
+                    dataBase.rollback();
+                } catch (SQLException e) {
+                    if (loggerIsAvailable) {
+                        String errorMessage = "Save and rollback failed, inconsistent data are possible: "
+                                + exception.getMessage();
+                        kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                    }
+                    if (Global.DEBUG) {
+                        e.printStackTrace();
+                    }
+                }
+                String errorMessage = "Saving the object failed: "
+                        + exception.getMessage();
+                if (loggerIsAvailable) {
+                    kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                }
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+                throw new KintoException(errorMessage);
+            } catch (NoSuchFieldException | IllegalAccessException exception) {
+                String errorMessage = "Error occurred while set the flag 'isPersistent'"
+                        + exception.getMessage();
+                if (loggerIsAvailable) {
+                    kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                }
+                if (Global.DEBUG) {
+                    exception.printStackTrace();
+                }
+            } finally {
+                createRelationRecordSQLCommands.clear();
             }
         }
     }
@@ -335,7 +335,7 @@ public class KintoCollection {
         String currentAttributeName = "";
         ArrayList<String> replaceRelationRecordSQLCommands = new ArrayList<>();
         try {
-            if (!isNewRecord(kintoObject)) {
+            if (kintoObject.isPersistent()) {
                 if (isValidObjectType(kintoObject)) {
                     // get all objects (uuid) in relation table
                     // use transactions
@@ -524,7 +524,7 @@ public class KintoCollection {
     public void removeRecord(KintoObject kintoObject) throws KintoException {
         String currentAttributeName = "";
         try {
-            if (!isNewRecord(kintoObject)) {
+            if (!kintoObject.isPersistent()) {
                 if (isValidObjectType(kintoObject)) {
                     // get all objects (uuid) in relation table
                     for (String attributeName : storableAttributes.keySet()) {
@@ -926,42 +926,6 @@ public class KintoCollection {
         if (!kintoObject.getClass().equals(type)) {
             String errorMessage = "The object is not from type " + type.getSimpleName() + " .";
             throw new KintoException(errorMessage);
-        }
-        return true;
-    }
-
-    // check if the object exist in local datastore
-    private boolean isNewRecord(KintoObject kintoObject) throws KintoException {
-        if (kintoObject == null) {
-            throw new KintoException("Can't manage a nullable object.");
-        }
-        boolean isEmbeddedObject = false;
-        String objectTypeSimpleName = kintoObject.getClass().getSimpleName();
-        if (!objectTypeSimpleName.equals(getName())) {
-            isEmbeddedObject = true;
-        }
-        // search for object with id in local datastore
-        // building sql select command
-        try {
-            StringBuilder sql = new StringBuilder("SELECT uuid FROM ");
-            if (isEmbeddedObject) {
-                sql.append(objectTypeSimpleName);
-            } else {
-                sql.append(getName());
-            }
-            sql.append(" WHERE uuid='");
-            sql.append(kintoObject.getUUID());
-            sql.append("';");
-            KintoQueryResultSet resultSet = dataBase.executeQuery(sql.toString());
-            if (resultSet.next()) {
-                if (Global.DEBUG && loggerIsAvailable) {
-                    String message = "Kinto object with id " + kintoObject.getUUID() + " exists in local datastore.";
-                    kintoLogger.log(LogEntry.Severity.DEBUG, message);
-                }
-                return false;
-            }
-        } catch (SQLException exception) {
-            throw new KintoException(exception);
         }
         return true;
     }
