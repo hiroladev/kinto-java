@@ -118,5 +118,13 @@ The library is available from Maven:
         exception.printStackTrace();
     }
 }
-        ```
+```
 
+
+### Notice
+
+The android library from maven ist to old. In Google Maven are only aar files. I created an local (Maven) repo in the root of the project and put the android.jar in. So I can use it for Gradle and Maven.
+
+`mvn deploy:deploy-file -Durl=file:///home/mis/Dev/Java/kinto-java/repo/ -Dfile=/home/mis/Android/Sdk/platforms/android-31/android.jar -DgroupId=android -DartifactId=android -Dpackaging=jar -Dversion=1.0`
+
+![image](https://user-images.githubusercontent.com/48058062/152695845-5258d959-4a8e-4f36-a3d1-74296b64ba7d.png)
