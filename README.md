@@ -118,5 +118,5 @@ The library is available from Maven:
         exception.printStackTrace();
     }
 }
-        ```    
+        ```
 

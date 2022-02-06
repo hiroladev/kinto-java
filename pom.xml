@@ -6,7 +6,7 @@
 
     <groupId>de.hirola</groupId>
     <artifactId>kintojava</artifactId>
-    <version>1.1</version>
+    <version>1.1.2</version>
     <packaging>jar</packaging>
 
     <name>kinto-java library</name>
@@ -115,11 +115,6 @@
 
     <dependencies>
         <dependency>
-            <groupId>com.google.android</groupId>
-            <artifactId>android</artifactId>
-            <version>4.1.1.4</version>
-        </dependency>
-        <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>22.0.0</version>
@@ -134,6 +129,23 @@
             <artifactId>junit-jupiter-api</artifactId>
             <version>5.8.2</version>
         </dependency>
+        <dependency>
+            <groupId>android</groupId>
+            <artifactId>android</artifactId>
+            <version>1.0</version>
+        </dependency>
     </dependencies>
-
+    <repositories>
+        <repository>
+            <id>gmaven</id>
+            <name>Google Maven</name>
+            <url>https://maven.google.com/</url>
+        </repository>
+        <!--android.jar-->
+        <repository>
+            <id>local-repo</id>
+            <name>Local Repository</name>
+            <url>file:${project.basedir}/repo</url>
+        </repository>
+    </repositories>
 </project>

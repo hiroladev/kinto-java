@@ -7,19 +7,19 @@ apply plugin:'java'
 apply plugin: 'java-library-distribution'
 
 group 'de.hirola'
-version '1.1.1-SNAPSHOT'
+version '1.1.2'
 
 repositories {
     mavenCentral()
 }
 
 dependencies {
-    implementation 'com.google.android:android:4.1.1.4'
+    implementation files('repo/android/android/1.0/android-1.0.jar')
     implementation 'org.jetbrains:annotations:22.0.0'
     implementation 'org.xerial:sqlite-jdbc:3.36.0.2'
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
     testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
-}
+    }
 
 test {
     useJUnitPlatform()
