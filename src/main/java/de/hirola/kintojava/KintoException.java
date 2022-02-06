@@ -12,21 +12,31 @@ package de.hirola.kintojava;
  */
 public class KintoException extends Exception {
 
+    /**
+     * Create an empty exception object.
+     *
+     */
     public KintoException() {
         super();
     }
 
+    /**
+     * Create an exception object with a given exception object.
+     *
+     * @param exception to instantiate the kinto exception object
+     */
     public KintoException(Exception exception) {
         super(exception);
     }
 
 
+    /**
+     * Create an exception object with a given error message.
+     *
+     * @param message of the exception
+     */
     public KintoException(String message) {
         super(message);
     }
 
-    @Override
-    public String getMessage() {
-        return super.getMessage();
-    }
 }

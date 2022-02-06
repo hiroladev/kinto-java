@@ -4,8 +4,6 @@ import de.hirola.kintojava.model.Persisted;
 import de.hirola.kintojava.model.PersistentObject;
 
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Author extends PersistentObject {
 

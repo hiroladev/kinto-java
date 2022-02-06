@@ -2,7 +2,6 @@ package de.hirola.kintojava;
 
 import de.hirola.kintojava.bookstore.*;
 import de.hirola.kintojava.logger.KintoLogger;
-import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.model.KintoObject;
 
 import org.junit.jupiter.api.Test;
@@ -14,6 +13,8 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.*;
 
 class LibraryTest {
+
+    private static final String TAG = LibraryTest.class.getSimpleName();
 
     @Test
     void dataStoreTests() {
@@ -54,7 +55,7 @@ class LibraryTest {
             Kinto kinto = Kinto.getInstance(configuration);
             // test logging to file
             KintoLogger logger = kinto.getKintoLogger();
-            logger.log(LogEntry.Severity.DEBUG,"LibraryTest");
+            logger.log(KintoLogger.DEBUG, TAG, "LibraryTest", null);
             // save the objects in local data store
             kinto.add(author1);
             kinto.add(author2);

@@ -1,6 +1,8 @@
 package de.hirola.kintojava.logger;
 
 import de.hirola.kintojava.Global;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.IOException;
@@ -10,6 +12,7 @@ import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -22,14 +25,27 @@ import java.time.format.DateTimeFormatter;
  */
  public class KintoLogger {
 
+    public static final int INFO = 0;
+    public static final int WARNING = 1;
+    public static final int ERROR = 2;
+    public static final int DEBUG = 3;
+    public static final int BUG = 4;
+    public static final int FEATURE_REQUEST = 5;
+
+    private static final String TAG = KintoLogger.class.getSimpleName();
+
     private static KintoLogger instance;
     private final KintoLoggerConfiguration configuration;
-    private boolean isRunningOnAndroid;
     private final boolean localLoggingEnabled;
     private Path logFilePath;
-    private boolean remoteLoggingEnabled;
 
-    public static KintoLogger getInstance(KintoLoggerConfiguration configuration) {
+    /**
+     * Get the logger instance to log local and remote.
+     *
+     * @param configuration of logger
+     * @return The instance of logger object.
+     */
+    public static KintoLogger getInstance(@NotNull KintoLoggerConfiguration configuration) {
         if (instance == null) {
             instance = new KintoLogger(configuration);
         }
@@ -37,63 +53,61 @@ import java.time.format.DateTimeFormatter;
     }
 
     /**
-     * Logging message to different destinations.
+     * Log a message to different destinations.
+     * Timestamps are in UTC and ISO format.
      *
      * @param severity: severity of the log message
+     * @param tag of the log source
+     * @param exception of the log cause
      * @param  message: message to log
-     * @see LogEntry
      */
-    public void log(int severity, String message) {
+    public void log(int severity, @Nullable String tag, @NotNull String message, @Nullable Exception exception) {
 
-        LogEntry entry = new LogEntry(severity, message);
-        // determine the log destination
         switch (configuration.getLogggingDestination()) {
             case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
-                logToConsole(entry);
+                logToConsole(buildLogString(severity, tag, message, exception));
                 break;
             case KintoLoggerConfiguration.LOGGING_DESTINATION.FILE:
                 if (localLoggingEnabled) {
-                    logToFile(entry);
+                    logToFile(buildLogString(severity, tag, message, exception));
                 }
                 break;
             case KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToRemote(entry);
+                logToRemote(buildLogString(severity, tag, message, exception));
             case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
                     KintoLoggerConfiguration.LOGGING_DESTINATION.FILE:
-                logToConsole(entry);
-                logToFile(entry);
+                logToConsole(buildLogString(severity, tag, message, exception));
+                logToFile(buildLogString(severity, tag, message, exception));
                 break;
             case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
                     KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToConsole(entry);
-                logToRemote(entry);
+                logToConsole(buildLogString(severity, tag, message, exception));
+                logToRemote(buildLogString(severity, tag, message, exception));
                 break;
             case KintoLoggerConfiguration.LOGGING_DESTINATION.FILE +
                     KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToFile(entry);
-                logToRemote(entry);
+                logToFile(buildLogString(severity, tag, message, exception));
+                logToRemote(buildLogString(severity, tag, message, exception));
                 break;
             case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
                     KintoLoggerConfiguration.LOGGING_DESTINATION.FILE +
                     KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToConsole(entry);
-                logToFile(entry);
-                logToRemote(entry);
+                logToConsole(buildLogString(severity, tag, message, exception));
+                logToFile(buildLogString(severity, tag, message, exception));
+                logToRemote(buildLogString(severity, tag, message, exception));
                 break;
         }
     }
 
     /**
      * Sends a feedback for the app.
+     * Not implemented yet.
      *
      * @param type: tye of feedback
      * @param feedback: content of the feedback
-     * @see FeedbackEntry
      */
     public void feedback(int type, String feedback) {
-
-       FeedbackEntry entry = new FeedbackEntry(type, feedback);
-
+        System.out.println("Not implemented yet.");
     }
 
     private KintoLogger(KintoLoggerConfiguration configuration) {
@@ -110,42 +124,37 @@ import java.time.format.DateTimeFormatter;
         try {
             if (System.getProperty("java.vm.vendor").equals("The Android Project")) {
                 // Android
-                isRunningOnAndroid = true;
                 // path for local database on Android
                 logFilePath = Paths.get("/data/data/" + logfileName + "/.log");
             } else {
                 // JVM
-                isRunningOnAndroid = false;
                 //  path for local database on JVM
                 String userHomeDir = System.getProperty("user.home");
                 logFilePath = Paths.get(userHomeDir + File.separator + ".kinto-java" + File.separator + logfileName + ".log");
             }
         } catch (Exception exception){
             logFilePath = null;
-            isRunningOnAndroid = false;
         }
         if (!initFileLogging()) {
             System.out.println("Logging to file is disable! Activate debug mode for more information.");
             localLoggingEnabled = false;
         } else {
             localLoggingEnabled = true;
-            logToFile(new LogEntry(LogEntry.Severity.INFO,"File-Logging started ..."));
+                logToFile(buildLogString(INFO, TAG, "Logging to file enabled. Start logging now ...", null));
         }
     }
 
     //  simple print to console
-    private void logToConsole(LogEntry entry) {
-        System.out.println(buildLogEntryString(entry));
+    private void logToConsole(String entry) {
+        System.out.println(entry);
     }
 
     //  logging to file
-    private void logToFile(LogEntry entry) {
+    private void logToFile(String entry) {
         if (localLoggingEnabled) {
             try {
                 if (Files.isWritable(logFilePath)) {
-                    Files.write(logFilePath,
-                            buildLogEntryString(entry).getBytes(StandardCharsets.UTF_8),
-                            StandardOpenOption.APPEND);
+                    Files.write(logFilePath, entry.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
                 }
             } catch (IOException exception) {
                 if (Global.DEBUG) {
@@ -156,7 +165,7 @@ import java.time.format.DateTimeFormatter;
     }
 
     // remote logging
-    private void logToRemote(LogEntry entry) {
+    private void logToRemote(String entry) {
         System.out.println("Sorry. Remote logging not available yet:"
                 + entry);
     }
@@ -293,28 +302,32 @@ import java.time.format.DateTimeFormatter;
         return true;
     }
 
-    private String buildLogEntryString(LogEntry entry) {
-        Instant logDate = Instant.ofEpochMilli(entry.getTimeStamp());
+    private String buildLogString(int severity, @Nullable String tag, @NotNull String message, @Nullable Exception exception) {
+        // timestamp in UTC
+        Instant timeStamp = Instant.now().atZone(ZoneOffset.UTC).toInstant();
+        // timestamp in ISO format
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
-        String entryString = formatter.format(logDate);
-        switch (entry.getSeverity()) {
-            case LogEntry.Severity.INFO:
-                entryString = entryString.concat(" - " + "Info: ");
+        String entryString = formatter.format(timeStamp);
+        switch (severity) {
+            case INFO:
+                entryString += " - " + "Info: ";
                 break;
-            case LogEntry.Severity.WARNING:
-                entryString = entryString.concat(" - " + "Warning: ");
+            case WARNING:
+                entryString += " - " + "Warning: ";
                 break;
-            case LogEntry.Severity.ERROR:
-                entryString = entryString.concat(" - " + "Error: ");
+            case ERROR:
+                entryString += " - " + "Error: ";
                 break;
-            case LogEntry.Severity.DEBUG:
-                entryString = entryString.concat(" - " + "Debug: ");
+            case DEBUG:
+                entryString += " - " + "Debug: ";
                 break;
             default :
-                entryString = entryString.concat(" - " + "Unknown: ");
+                entryString += " - " + "Unknown: ";
         }
-        entryString = entryString.concat(entry.getMessage() + "\n");
-
+        entryString += message + "\n";
+        if (exception != null) {
+            entryString += exception.getMessage() + "\n";
+        }
         return entryString;
     }
 

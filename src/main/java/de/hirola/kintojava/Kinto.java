@@ -2,7 +2,6 @@ package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.KintoLogger;
 import de.hirola.kintojava.logger.KintoLoggerConfiguration;
-import de.hirola.kintojava.logger.LogEntry;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 import org.jetbrains.annotations.NotNull;
@@ -24,10 +23,11 @@ import java.util.*;
  */
 public final class Kinto {
 
+    private static final String TAG = Kinto.class.getSimpleName();
+
     private static Kinto instance;
-    private final KintoConfiguration kintoConfiguration;
-    private final KintoLogger kintoLogger;
     private final String bucket;
+    private final KintoLogger kintoLogger;
     private final String appPackageName;
     private final ArrayList<KintoCollection> collections;
     private KintoDatabaseAdapter dataBase;
@@ -37,7 +37,7 @@ public final class Kinto {
      * Create a singleton instance for local data management and sync.
      *
      * @param kintoConfiguration The configuration for local and remote kinto datastore.
-     * @return singleton object for data management
+     * @return The singleton object for data management.
      */
     public static Kinto getInstance(KintoConfiguration kintoConfiguration) throws KintoException {
         if (instance == null) {
@@ -47,27 +47,35 @@ public final class Kinto {
     }
 
     /**
+     * Get the instance of kinto logger object for local and remote logging.
      *
-     * @return an active instance of KintoLogger
+     * @return The active instance of KintoLogger.
      */
     public KintoLogger getKintoLogger() {
         return kintoLogger;
     }
 
     /**
+     * Get the local datastore connection.
      *
-     * @return a (open) connection to the local datastore
+     * @return An opened connection to the local datastore.
      * @throws KintoException if the connection to local datastore couldn't' created
      */
-    public KintoDatabaseAdapter getLocalDBConnection() throws KintoException {
+    public KintoDatabaseAdapter getLocalDatastoreConnection() throws KintoException {
         if (dataBase == null) {
             dataBase = KintoDatabaseAdapter.getInstance(this, appPackageName);
         }
         return dataBase;
     }
 
-    public void login(Credentials credentials) {
-
+    /**
+     * Try to log in to the remote kinto service.
+     *
+     * @param credentials for the login to remote kinto sync data store
+     * @throws KintoException if the login failed
+     */
+    public void login(@NotNull Credentials credentials) throws KintoException {
+        System.out.println("Not implemented yet " + credentials.getBasicAuthString());
     }
 
     /**
@@ -96,13 +104,15 @@ public final class Kinto {
     }
 
     /**
+     * Update an (existing )object in local datastore.
      *
-     * @param kintoObject Object to update in local datastore
-     * @throws KintoException if the object null or an error occurred while updating in datastore
+     * @param kintoObject object to update in local datastore
+     * @throws KintoException if the object not existing in local datastore or
+     *                        an error occurred while updating in datastore
      */
-    public void update(KintoObject kintoObject) throws KintoException {
-        if (kintoObject == null) {
-            throw new KintoException("Can't update a null object.");
+    public void update(@NotNull KintoObject kintoObject) throws KintoException {
+        if (!kintoObject.isPersistent()) {
+            throw new KintoException("Can't update a non existing object.");
         }
         if (isOpen()) {
             Iterator<KintoCollection> iterator = collections.stream().iterator();
@@ -118,13 +128,16 @@ public final class Kinto {
     }
 
     /**
+     * Remove an (existing) object from local datastore. If the object exists in remote kinto,
+     * it will not be deleted there without sync.
      *
      * @param kintoObject Object to remove
-     * @throws KintoException if the object null or an error occurred while removing from datastore
+     * @throws KintoException if the object not existing in local datastore
+     *                        or an error occurred while removing from datastore
      */
-    public void remove(KintoObject kintoObject) throws KintoException{
-        if (kintoObject == null) {
-            throw new KintoException("Can't remove a null object.");
+    public void remove(@NotNull KintoObject kintoObject) throws KintoException{
+        if (!kintoObject.isPersistent()) {
+            throw new KintoException("Can't remove a non existing object.");
         }
         if (isOpen()) {
             if (kintoObject.isUseInRelation()) {
@@ -147,7 +160,7 @@ public final class Kinto {
      *
      * @param type the type og object
      * @param uuid  the uuid of the object
-     * @return an object from datastore wih given uuid or null, if the object was not found in local datastore
+     * @return An object from datastore wih given uuid or null, if the object was not found in local datastore.
      * @throws KintoException if the length of uuid is 0 or an exception occurred while getting object from datastore
      */
     public KintoObject findByUUID(@NotNull Class<? extends KintoObject> type, @NotNull String uuid) throws KintoException {
@@ -183,6 +196,7 @@ public final class Kinto {
                                     String embeddedObjectUUID = embeddedObject.getUUID();
                                     // call this func recursive
                                     // fill the "empty" object with values
+                                    //TODO: NullPointerException
                                     embeddedObject = findByUUID((Class<? extends KintoObject>) attributeType, embeddedObjectUUID);
                                     if (embeddedObject == null) {
                                         throw new KintoException("An embedded object was not found in datastore.");
@@ -344,7 +358,7 @@ public final class Kinto {
                                     + attributeName
                                     + " using reflection: "
                                     + exception.getMessage();
-                            kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                            kintoLogger.log(KintoLogger.ERROR, TAG, errorMessage, exception);
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
                             }
@@ -354,7 +368,7 @@ public final class Kinto {
                                     + attributeName
                                     + " using reflection failed: "
                                     + exception.getMessage();
-                            kintoLogger.log(LogEntry.Severity.ERROR, errorMessage);
+                            kintoLogger.log(KintoLogger.ERROR, TAG, errorMessage, exception);
                             if (Global.DEBUG) {
                                 exception.printStackTrace();
                             }
@@ -370,19 +384,35 @@ public final class Kinto {
         }
     }
 
-    // Publish all local data to the server, import remote changes
-    public void sync() {
-
+    /**
+     * Publish all local data to the server, import remote changes.
+     * Not implemented yet.
+     */
+    public void sync() throws KintoException {
+        System.out.println("Sync to remote kinto with bucket " + bucket +" Not implemented yet.");
     }
 
+    /**
+     * A flag to determine if the sync enabled.
+     *
+     * @return The flag, if remote kinto enabled or not.
+     */
     public boolean syncEnabled() {
         return syncEnabled;
     }
 
+    /**
+     * A flag to determine if the local datastore opened.
+     *
+     * @return The flag, if remote kinto enabled or not.
+     */
     public boolean isOpen() {
         return dataBase.isOpen();
     }
 
+    /**
+     * Closed the local datastore.
+     */
     public void close() {
         if (isOpen()) {
             try {
@@ -396,7 +426,6 @@ public final class Kinto {
     }
 
     private Kinto(@NotNull KintoConfiguration kintoConfiguration) throws KintoException {
-        this.kintoConfiguration = kintoConfiguration;
         appPackageName = kintoConfiguration.getAppPackageName();
         if (appPackageName.contains(".")) {
             bucket = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);

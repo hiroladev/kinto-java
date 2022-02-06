@@ -23,7 +23,7 @@ public class Customer extends PersistentObject {
     private Author favoriteAuthor;
     // 1:1 relation - one address
     @Persisted
-    private List<Address> addressList;
+    private final List<Address> addressList;
 
     // we need a constructor for reflection
     public Customer() {

@@ -1,6 +1,7 @@
 package de.hirola.kintojava;
 
 import de.hirola.kintojava.model.KintoObject;
+import org.jetbrains.annotations.NotNull;
 
 import java.sql.Connection;
 import java.util.List;
@@ -17,19 +18,10 @@ import java.util.List;
  */
 public final class KintoQuery {
 
-    private Connection localdbConnection;
+    private final Connection localdbConnection;
 
-    public KintoQuery(Connection localdbConnection) {
+    public KintoQuery(@NotNull Connection localdbConnection) {
         this.localdbConnection = localdbConnection;
-    }
-
-    /**
-     *
-     * @return list of all objects in the kintoCollection or null if an error occurred
-     */
-    public static List<KintoObject> findAll(KintoCollection kintoCollection) {
-        String sql = "SELECT * from " + kintoCollection.getName();
-        return null;
     }
 
     public static List<KintoObject> between(){return null;}
@@ -39,4 +31,11 @@ public final class KintoQuery {
     public static List<KintoObject> lessThan(){return null;}
     public static List<KintoObject> lessThanOrEqualTo(){return null;}
     public static List<KintoObject> notEqualTo(){return null;}
+
+    @Override
+    public String toString() {
+        return "KintoQuery{" +
+                "localdbConnection=" + localdbConnection +
+                '}';
+    }
 }

@@ -11,7 +11,7 @@ import java.time.format.DateTimeParseException;
  * Copyright 2021 by Michael Schmidt, Hirola Consulting
  * This software us licensed under the AGPL-3.0 or later.
  *
- * A simple ResultSet to using with Android (Cursor) and JVM (ResultSet).
+ * A simple layer for a ResultSet to using with Android (Cursor) and JVM (ResultSet).
  *
  * @author Michael Schmidt (Hirola)
  * @since 1.1.1
@@ -22,18 +22,36 @@ public final class KintoQueryResultSet {
     private final Cursor cursor;
     private final boolean isRunningOnAndroid;
 
+    /**
+     * Create an object for using in jvm.
+     *
+     * @param resultSet to use in this library
+     */
     public KintoQueryResultSet(ResultSet resultSet) {
         this.resultSet = resultSet;
         cursor = null;
         isRunningOnAndroid = false;
     }
 
+    /**
+     * Create an object for using in android.
+     *
+     * @param cursor to use in this library
+     */
     public KintoQueryResultSet(Cursor cursor) {
         this.cursor = cursor;
         resultSet = null;
         isRunningOnAndroid = true;
     }
 
+    /**
+     * A layer to use result set on jvm and Android.
+     *
+     * @return A flag to determine, if their more results.
+     * @throws SQLException if an error occurred
+     * @see ResultSet
+     * @see Cursor
+     */
     public boolean next() throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -48,6 +66,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The string value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public String getString(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -62,6 +90,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The boolean value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public boolean getBoolean(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -83,6 +121,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The integer value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public int getInt(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -101,6 +149,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The long value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public long getLong(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -119,6 +177,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The double value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public double getDouble(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -133,6 +201,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The float value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public float getFloat(String columnLabel) throws SQLException {
         if (isRunningOnAndroid) {
             if (cursor != null) {
@@ -147,6 +225,16 @@ public final class KintoQueryResultSet {
         }
     }
 
+    /**
+     * A layer to get the value for a given column name on jvm and Android.
+     *
+     * @param columnLabel name of the column
+     * @return The date value of the row in column.
+     * @throws SQLException if the result set or the cursor is null or
+     *                      the column does not exist
+     * @see ResultSet
+     * @see Cursor
+     */
     public LocalDate getDate(String columnLabel) throws SQLException {
         // save LocalDate as text in iso format
         String isoLocalDateString;
@@ -173,6 +261,7 @@ public final class KintoQueryResultSet {
         }
     }
 
+    // get the indes of the column with given name
     private int getColumnIndex(String columnLabel) throws SQLException {
         if (cursor != null) {
             int columnIndex = cursor.getColumnIndex(columnLabel);

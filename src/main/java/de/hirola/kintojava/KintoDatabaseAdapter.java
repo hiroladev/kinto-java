@@ -1,7 +1,6 @@
 package de.hirola.kintojava;
 
 import de.hirola.kintojava.logger.KintoLogger;
-import de.hirola.kintojava.logger.LogEntry;
 
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
@@ -23,8 +22,9 @@ import java.sql.*;
  */
 public class KintoDatabaseAdapter {
 
+    private static final String TAG = KintoDatabaseAdapter.class.getSimpleName();
+
     private static KintoDatabaseAdapter instance;
-    private final KintoLogger logger;
     private boolean isRunningOnAndroid;
     private Connection jvmDatabase; // JVM database
     private SQLiteDatabase androidDatabase; // Android database
@@ -147,7 +147,7 @@ public class KintoDatabaseAdapter {
     }
 
     private KintoDatabaseAdapter(@NotNull Kinto kinto, @NotNull String appPackageName) throws KintoException {
-        logger = kinto.getKintoLogger();
+        KintoLogger kintoLogger = kinto.getKintoLogger();
         String databasePath;
         String databaseName;
         if (appPackageName.contains(".")) {
@@ -190,12 +190,12 @@ public class KintoDatabaseAdapter {
                 jvmDatabase = DriverManager.getConnection(url);
             }
             if (Global.DEBUG) {
-                logger.log(LogEntry.Severity.INFO, "Connection to SQLite has been established.");
+                kintoLogger.log(KintoLogger.DEBUG, TAG, "Connection to SQLite has been established.", null);
             }
         } catch (SQLiteException exception) {
             // database couldn't open
             if (Global.DEBUG) {
-                logger.log(LogEntry.Severity.DEBUG, exception.getMessage());
+                kintoLogger.log(KintoLogger.DEBUG, TAG, "Local database could not opened.", exception);
             }
             String errorMessage = "The database can't be opened: "
                     + exception;
@@ -203,7 +203,7 @@ public class KintoDatabaseAdapter {
         } catch (ClassNotFoundException exception) {
             // sqlite driver not found or database couldn't open
             if (Global.DEBUG) {
-                logger.log(LogEntry.Severity.DEBUG, exception.getMessage());
+                kintoLogger.log(KintoLogger.DEBUG, TAG, "sqlite driver not found or database could not open.", exception);
             }
             String errorMessage = "The JDBC driver for SQLite wasn't found: "
                     + exception;

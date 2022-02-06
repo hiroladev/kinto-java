@@ -6,10 +6,18 @@
 
     <groupId>de.hirola</groupId>
     <artifactId>kintojava</artifactId>
-    <version>1.1.1-SNAPSHOT</version>
+    <version>1.1</version>
+    <packaging>jar</packaging>
 
+    <name>kinto-java library</name>
     <description>A java library to use with kinto.</description>
     <url>https://github.com/hiroladev/kinto-java</url>
+
+    <scm>
+        <connection>scm:git:git://github.com/hiroladev/kinto-java.git</connection>
+        <developerConnection>scm:git:ssh://github.com/hiroladev/kinto-java.git</developerConnection>
+        <url>https://github.com/hiroladev/kinto-java</url>
+    </scm>
 
     <licenses>
         <license>

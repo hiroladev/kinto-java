@@ -15,14 +15,20 @@ public final class Credentials {
 
     public enum Method {BASIC}
     private static Credentials instance;
-    private String user;
-    private String password;
-    private Method authenticationMode;
+    private final String user;
+    private final String password;
+    private final Method authenticationMethod;
 
+    /**
+     * Create an object to authenticate to remote kinto.
+     *
+     * @param user which one to log to remote kinto
+     * @param password of the user
+     */
     private Credentials(String user, String password) {
         this.user = user;
         this.password = password;
-        authenticationMode = Method.BASIC;
+        authenticationMethod = Method.BASIC;
     }
 
     /**
@@ -30,7 +36,7 @@ public final class Credentials {
      *
      * @param user username for data access
      * @param password password for data access
-     * @return Credentials to login on kinto remote
+     * @return Credentials to login to kinto remote.
      */
     public static Credentials basicAuth(String user, String password) {
         if (instance == null) {
@@ -39,8 +45,21 @@ public final class Credentials {
         return instance;
     }
 
+    /**
+     * Get the string to authenticate.
+     *
+     * @return The authentication string to use while login.
+     */
     public String getBasicAuthString() {
         return this.user + (":") + this.password;
     }
 
+    /**
+     * Get the authentication method. Actual only the basic methode is available.
+     *
+     * @return The method that is used to log in.
+     */
+    public Method getAuthenticationMethode() {
+        return authenticationMethod;
+    }
 }

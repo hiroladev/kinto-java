@@ -13,10 +13,10 @@ public class Store extends PersistentObject {
     private String name;
     // 1:m relations - many customers
     @Persisted
-    private List<Customer> customers;
+    private final List<Customer> customers;
     // 1:m relations - many books
     @Persisted
-    private List<Book> books;
+    private final List<Book> books;
 
     // we need a constructor for reflection
     public Store() {
