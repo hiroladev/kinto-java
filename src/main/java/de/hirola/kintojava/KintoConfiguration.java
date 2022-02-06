@@ -77,13 +77,10 @@ public class KintoConfiguration {
         private int kintoPort;
 
         public Builder(String packageName) {
-            // get the bucket name from package name, e.g. com.myfirm.AppName
-            this.appPackageName = packageName;
-            objectTypes = new ArrayList<>();
-            // default server
-            kintoServer = "localhost";
-            // default port
-            kintoPort = 443;
+            this.appPackageName = packageName;  // get the bucket name from package name, e.g. com.myfirm.AppName
+            objectTypes = new ArrayList<>(); // all types managed by kinto
+            kintoServer = "localhost"; // default server
+            kintoPort = 443; // default port
         }
 
         public Builder objectTypes(ArrayList<Class<? extends KintoObject>> types) {
@@ -103,6 +100,10 @@ public class KintoConfiguration {
 
         public Builder appPackageName(String appPackageName) {
             this.appPackageName = appPackageName;
+            return this;
+        }
+
+        public Builder kintoLogger() {
             return this;
         }
 
@@ -150,9 +151,6 @@ public class KintoConfiguration {
                 }
             }
         } catch (Throwable exception) {
-            if (Global.DEBUG) {
-                exception.printStackTrace();
-            }
             throw new KintoException(exception.getMessage());
         }
     }

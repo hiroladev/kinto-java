@@ -1,6 +1,5 @@
-package de.hirola.kintojava.logger;
+package de.hirola.kintojava;
 
-import de.hirola.kintojava.Global;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -11,9 +10,9 @@ import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.attribute.FileTime;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Objects;
 
 /**
  * Copyright 2021 by Michael Schmidt, Hirola Consulting
@@ -35,19 +34,12 @@ import java.time.format.DateTimeFormatter;
     private static final String TAG = KintoLogger.class.getSimpleName();
 
     private static KintoLogger instance;
-    private final KintoLoggerConfiguration configuration;
-    private final boolean localLoggingEnabled;
+    private boolean isLogToFileEnabled;
     private Path logFilePath;
 
-    /**
-     * Get the logger instance to log local and remote.
-     *
-     * @param configuration of logger
-     * @return The instance of logger object.
-     */
-    public static KintoLogger getInstance(@NotNull KintoLoggerConfiguration configuration) {
+    public static KintoLogger getInstance(@Nullable String logFileName) {
         if (instance == null) {
-            instance = new KintoLogger(configuration);
+            instance = new KintoLogger(logFileName);
         }
         return instance;
     }
@@ -62,85 +54,69 @@ import java.time.format.DateTimeFormatter;
      * @param  message: message to log
      */
     public void log(int severity, @Nullable String tag, @NotNull String message, @Nullable Exception exception) {
-
-        switch (configuration.getLogggingDestination()) {
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE:
-                logToConsole(buildLogString(severity, tag, message, exception));
-                break;
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.FILE:
-                if (localLoggingEnabled) {
-                    logToFile(buildLogString(severity, tag, message, exception));
-                }
-                break;
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToRemote(buildLogString(severity, tag, message, exception));
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
-                    KintoLoggerConfiguration.LOGGING_DESTINATION.FILE:
-                logToConsole(buildLogString(severity, tag, message, exception));
-                logToFile(buildLogString(severity, tag, message, exception));
-                break;
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
-                    KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToConsole(buildLogString(severity, tag, message, exception));
-                logToRemote(buildLogString(severity, tag, message, exception));
-                break;
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.FILE +
-                    KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToFile(buildLogString(severity, tag, message, exception));
-                logToRemote(buildLogString(severity, tag, message, exception));
-                break;
-            case KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE +
-                    KintoLoggerConfiguration.LOGGING_DESTINATION.FILE +
-                    KintoLoggerConfiguration.LOGGING_DESTINATION.REMOTE:
-                logToConsole(buildLogString(severity, tag, message, exception));
-                logToFile(buildLogString(severity, tag, message, exception));
-                logToRemote(buildLogString(severity, tag, message, exception));
-                break;
+        if (Global.DEBUG || severity == KintoLogger.DEBUG) {
+            logToConsole(buildLogString(severity, tag, message, exception));
         }
+        logToFile(buildLogString(severity, tag, message, exception));
     }
 
     /**
-     * Sends a feedback for the app.
-     * Not implemented yet.
-     *
-     * @param type: tye of feedback
-     * @param feedback: content of the feedback
+     The "struct" of  possible destinations for logging.
+     You can combine for multiple targets, e.g. 3 means
+     log to console and file.
+     For remote logging must be specified a valid log server.
      */
-    public void feedback(int type, String feedback) {
-        System.out.println("Not implemented yet.");
+    public static class LOGGING_DESTINATION {
+        /**
+         *  A normal feedback.
+         */
+        public static final int CONSOLE = 1;
+        /**
+         * A Feedback for an app issue.
+         */
+        public static final int FILE = 3;
+        /**
+         A Feedback for a new feature.
+         */
+        public static final int REMOTE = 5;
     }
 
-    private KintoLogger(KintoLoggerConfiguration configuration) {
-        this.configuration = configuration;
-        String appPackageName = configuration.getAppPackageName();
-        String logfileName;
-        if (appPackageName.contains(".")) {
-            logfileName = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);
-        } else {
-            logfileName = appPackageName;
-        }
+    private KintoLogger(String logFileName) {
+        String logfile = Objects.requireNonNullElse(logFileName, "kinto-java");
         // build the path, determine if android or jvm
         // see https://developer.android.com/reference/java/lang/System#getProperties()
         try {
-            if (System.getProperty("java.vm.vendor").equals("The Android Project")) {
-                // Android
-                // path for local database on Android
-                logFilePath = Paths.get("/data/data/" + logfileName + "/.log");
+            String vendor = System.getProperty("java.vm.vendor"); // can be null
+            if (vendor != null) {
+                if (vendor.equals("The Android Project")) {
+                    // Android
+                    // path for local database on Android
+                    logFilePath = Paths.get("/data/data/" + logfile + "/.log");
+                } else {
+                    // JVM
+                    //  path for local database on JVM
+                    String userHomeDir = System.getProperty("user.home"); // can be null
+                    if (userHomeDir != null) {
+                        logFilePath = Paths.get(userHomeDir + File.separator + ".kinto-java" + File.separator + logfile + ".log");
+                    } else {
+                        logFilePath = null;
+                    }
+                }
             } else {
-                // JVM
-                //  path for local database on JVM
-                String userHomeDir = System.getProperty("user.home");
-                logFilePath = Paths.get(userHomeDir + File.separator + ".kinto-java" + File.separator + logfileName + ".log");
+                throw new KintoException("Could not determine the runtime environment.");
             }
         } catch (Exception exception){
-            logFilePath = null;
+            isLogToFileEnabled = false;
+            System.out.println("Logging to file is disable.");
         }
-        if (!initFileLogging()) {
-            System.out.println("Logging to file is disable! Activate debug mode for more information.");
-            localLoggingEnabled = false;
-        } else {
-            localLoggingEnabled = true;
+        if (isLogToFileEnabled) {
+            if (!initFileLogging()) {
+                System.out.println("Logging to file is disable.");
+                isLogToFileEnabled = false;
+            } else {
+                isLogToFileEnabled = true;
                 logToFile(buildLogString(INFO, TAG, "Logging to file enabled. Start logging now ...", null));
+            }
         }
     }
 
@@ -151,7 +127,7 @@ import java.time.format.DateTimeFormatter;
 
     //  logging to file
     private void logToFile(String entry) {
-        if (localLoggingEnabled) {
+        if (isLogToFileEnabled) {
             try {
                 if (Files.isWritable(logFilePath)) {
                     Files.write(logFilePath, entry.getBytes(StandardCharsets.UTF_8), StandardOpenOption.APPEND);
@@ -172,6 +148,9 @@ import java.time.format.DateTimeFormatter;
 
     // check file system permissions, create subdirectories and log file, ...
     private boolean initFileLogging() {
+        if (logFilePath == null) {
+            return false;
+        }
         // max file size in byte
         int maxFileSize = 1000000;
         // max count of log files
@@ -229,9 +208,9 @@ import java.time.format.DateTimeFormatter;
                                             Files.delete(oldestLogFilePath);
                                         }
                                         // archive the last log file
-                                        LocalDate localDate = LocalDate.now();
+                                        Instant timeStamp = Instant.now().atZone(ZoneOffset.UTC).toInstant();
                                         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
-                                        String archiveLogFileName = this.logFilePath.getFileName().toString() + formatter.format(localDate);
+                                        String archiveLogFileName = this.logFilePath.getFileName().toString() + formatter.format(timeStamp);
                                         Path archivePath = Paths.get(logFilePath.getParent().toString(), archiveLogFileName);
                                         // if the new file exists, we write in old log file and try to rename later
                                         if (!Files.exists(archivePath)) {
@@ -307,7 +286,7 @@ import java.time.format.DateTimeFormatter;
         Instant timeStamp = Instant.now().atZone(ZoneOffset.UTC).toInstant();
         // timestamp in ISO format
         DateTimeFormatter formatter = DateTimeFormatter.ISO_INSTANT;
-        String entryString = formatter.format(timeStamp);
+        String entryString = formatter.format(timeStamp) + " - " + tag + " - ";
         switch (severity) {
             case INFO:
                 entryString += " - " + "Info: ";

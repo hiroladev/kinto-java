@@ -10,6 +10,4 @@ package de.hirola.kintojava.model;
  * @author Michael Schmidt (Hirola)
  * @since 1.1.1
  */
-public interface KintoModel {
-
-}
+public interface KintoModel { }

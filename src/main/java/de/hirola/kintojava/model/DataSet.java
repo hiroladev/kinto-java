@@ -2,6 +2,7 @@ package de.hirola.kintojava.model;
 
 import de.hirola.kintojava.Global;
 import de.hirola.kintojava.KintoException;
+import org.jetbrains.annotations.NotNull;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
@@ -37,7 +38,7 @@ public final class DataSet {
 
     private final Field attribute;
     private String sqlDataTypeString;
-    private Class<? extends KintoObject> listType;
+    private Class<?> listType;
     private boolean isKintoObject;
     private boolean isList;
 
@@ -56,10 +57,15 @@ public final class DataSet {
         DATA_MAPPINGS.put("java.util.List", "RELATION");
     }
 
-    public DataSet(Field attribute) throws KintoException {
-        if (attribute == null) {
-            throw new KintoException("Attribute must not be null.");
-        }
+    /**
+     * Create a dataset object for an object attribute.
+     *
+     * @param attribute of the dataset
+     * @throws KintoException has the attribute an invalid  name (illegalAttributeNames)
+     * @see Global
+     */
+    public DataSet(@NotNull Field attribute) throws KintoException {
+
         // filter attribute names, such sql commands and in kinto used keywords
         if (attributeHasInvalidName(attribute)) {
             throw new KintoException("Attribute "
@@ -72,41 +78,23 @@ public final class DataSet {
         initAttributes();
     }
 
-    private void initAttributes() throws KintoException {
-        Class<?> attributeType = attribute.getType();
-        // list of kinto objects
-        if (attributeType.getSimpleName().equalsIgnoreCase("List")) {
-            // TODO: Cast
-            listType = ((Class<? extends KintoObject>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
-            isList = true;
-        }
-        // kinto object -> foreign key
-        if (haveAttributeKintoObjectAsSuperClass(attributeType)) {
-            // "foreign key" classname+id
-            sqlDataTypeString = "TEXT";
-            isKintoObject = true;
-        }
-        if (sqlDataTypeString == null) {
-            // primitive or unsupported data types
-            sqlDataTypeString = DATA_MAPPINGS.get(attributeType.getName());
-            if (sqlDataTypeString == null) {
-                String errorMessage = "Unsupported data type: "
-                        + attributeType.getName()
-                        + " in "
-                        + attribute.getDeclaringClass();
-                throw new KintoException(errorMessage);
-            }
-        }
-    }
-
+    /**
+     * Get the attribute of the data set.
+     *
+     * @return The attribute of the data set.
+     */
     public Field getAttribute() {
         return attribute;
     }
 
-    public String getValueAsString(KintoObject forKintoObject) throws KintoException {
-        if (forKintoObject == null) {
-            throw new KintoException("Object must not null.");
-        }
+    /**
+     * Get the value for the attribute of the object format as String.
+     *
+     * @param forKintoObject object containing the attribute
+     * @return The value of the attribute as String.
+     * @throws KintoException if the value could not format
+     */
+    public String getValueAsString(@NotNull KintoObject forKintoObject) throws KintoException {
         String valueForAttribute;
         String attributeName = attribute.getName();
         try {
@@ -177,26 +165,57 @@ public final class DataSet {
         return valueForAttribute;
     }
 
+    /**
+     * Get the corresponding sql data type of the attribute data type.
+     *
+     * @return The sql data type for the attribute data type.
+     */
     public String getSqlDataTypeString() {
         return sqlDataTypeString;
     }
 
+    /**
+     * Get the Java data type of the attribute.
+     *
+     * @return The Java data type of the attribute data type.
+     */
     public String getJavaDataTypeString() {
         return attribute.getType().getName();
     }
 
+    /**
+     * Get a flag, if attribute an embedded kinto object.
+     *
+     * @return The flag to determine is attribute an (embedded) kinto object.
+     */
     public boolean isKintoObject() {
         return isKintoObject;
     }
 
+    /**
+     * Get a flag, if attribute a list object.
+     *
+     * @return The flag to determine is attribute a list object.
+     */
     public boolean isList() {
         return isList;
     }
 
-    public Class<? extends KintoObject> getListType() {
+    /**
+     * Get the type of embedded element from list attribute.
+     *
+     * @return The class of the list element
+     */
+    public Class<?> getListType() {
         return listType;
     }
 
+    /**
+     * Determine if the given type inherited from kinto object or not.
+     *
+     * @param type to check
+     * @return A flag if the type inherited from kinto object.
+     */
     public static boolean haveAttributeKintoObjectAsSuperClass(Class<?> type) {
         Class<?> superClass = type.getSuperclass();
         while (superClass != null) {
@@ -211,8 +230,41 @@ public final class DataSet {
         return false;
     }
 
+    /**
+     * Check if the attribute of the data set has an avlid name.
+     *
+     * @param attribute to check
+     * @return A flag if the attribute has a valid name.
+     */
     public static boolean attributeHasInvalidName(Field attribute) {
         String attributeName = attribute.getName();
         return Global.illegalAttributeNames.contains(attributeName.toUpperCase());
+    }
+
+    private void initAttributes() throws KintoException {
+        Class<?> attributeType = attribute.getType();
+        // list of kinto objects
+        if (attributeType.getSimpleName().equalsIgnoreCase("List")) {
+            // get a list element
+            listType = ((Class<?>) ((ParameterizedType) attribute.getGenericType()).getActualTypeArguments()[0]);
+            isList = true;
+        }
+        // kinto object -> foreign key
+        if (haveAttributeKintoObjectAsSuperClass(attributeType)) {
+            // "foreign key" classname+id
+            sqlDataTypeString = "TEXT";
+            isKintoObject = true;
+        }
+        if (sqlDataTypeString == null) {
+            // primitive or unsupported data types
+            sqlDataTypeString = DATA_MAPPINGS.get(attributeType.getName());
+            if (sqlDataTypeString == null) {
+                String errorMessage = "Unsupported data type: "
+                        + attributeType.getName()
+                        + " in "
+                        + attribute.getDeclaringClass();
+                throw new KintoException(errorMessage);
+            }
+        }
     }
 }

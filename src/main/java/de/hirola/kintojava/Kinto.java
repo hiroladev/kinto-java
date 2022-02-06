@@ -1,7 +1,5 @@
 package de.hirola.kintojava;
 
-import de.hirola.kintojava.logger.KintoLogger;
-import de.hirola.kintojava.logger.KintoLoggerConfiguration;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 import org.jetbrains.annotations.NotNull;
@@ -25,48 +23,45 @@ public final class Kinto {
 
     private static final String TAG = Kinto.class.getSimpleName();
 
-    private static Kinto instance;
     private final String bucket;
     private final KintoLogger kintoLogger;
-    private final String appPackageName;
     private final ArrayList<KintoCollection> collections;
-    private KintoDatabaseAdapter dataBase;
+    private final KintoDatabaseAdapter dataBase;
     private final boolean syncEnabled;
 
-    /**
-     * Create a singleton instance for local data management and sync.
-     *
-     * @param kintoConfiguration The configuration for local and remote kinto datastore.
-     * @return The singleton object for data management.
-     */
-    public static Kinto getInstance(KintoConfiguration kintoConfiguration) throws KintoException {
-        if (instance == null) {
-            instance = new Kinto(kintoConfiguration);
+    public Kinto(@NotNull KintoConfiguration kintoConfiguration) throws KintoException {
+        String appPackageName = kintoConfiguration.getAppPackageName();
+        if (appPackageName.contains(".")) {
+            bucket = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);
+        } else {
+            bucket = appPackageName;
         }
-        return instance;
-    }
-
-    /**
-     * Get the instance of kinto logger object for local and remote logging.
-     *
-     * @return The active instance of KintoLogger.
-     */
-    public KintoLogger getKintoLogger() {
-        return kintoLogger;
+        // check managed objects
+        int size = kintoConfiguration.getObjectTypes().size();
+        if (size == 0) {
+            throw new KintoException("There are no managed object types in configuration.");
+        }
+        // activate logging
+        kintoLogger = KintoLogger.getInstance(null);
+        collections = new ArrayList<>(size);
+        syncEnabled = false;
+        // initialize the local datastore for the collection
+        dataBase = new KintoDatabaseAdapter(appPackageName);
+        // create or check collections (schema)
+        for (Class<? extends KintoObject> aClass : kintoConfiguration.getObjectTypes()) {
+            initializeCollection(aClass);
+        }
     }
 
     /**
      * Get the local datastore connection.
      *
      * @return An opened connection to the local datastore.
-     * @throws KintoException if the connection to local datastore couldn't' created
      */
-    public KintoDatabaseAdapter getLocalDatastoreConnection() throws KintoException {
-        if (dataBase == null) {
-            dataBase = KintoDatabaseAdapter.getInstance(this, appPackageName);
-        }
+    public KintoDatabaseAdapter getLocalDatastoreConnection() {
         return dataBase;
     }
+
 
     /**
      * Try to log in to the remote kinto service.
@@ -180,57 +175,70 @@ public final class Kinto {
                     try {
                         // returns a kinto object
                         // contains embedded objects with empty values
-                        kintoObject = collection.findByUUID(uuid);
-                        Field[] attributes = kintoObject.getClass().getDeclaredFields();
-                        Iterator<Field> fieldIterator = Arrays.stream(attributes).iterator();
-                        while (fieldIterator.hasNext()) {
-                            // 1:1 embedded attribute
-                            Field attribute = fieldIterator.next();
-                            Class<?> attributeType = attribute.getType();
-                            if (DataSet.haveAttributeKintoObjectAsSuperClass(attributeType)) {
-                                // get the uuid from embedded object
-                                attribute.setAccessible(true);
-                                KintoObject embeddedObject = (KintoObject) attribute.get(kintoObject);
-                                // check if object has values from datastore - have no null values
-                                if (embeddedObject != null) {
-                                    String embeddedObjectUUID = embeddedObject.getUUID();
-                                    // call this func recursive
-                                    // fill the "empty" object with values
-                                    //TODO: NullPointerException
-                                    embeddedObject = findByUUID((Class<? extends KintoObject>) attributeType, embeddedObjectUUID);
-                                    if (embeddedObject == null) {
-                                        throw new KintoException("An embedded object was not found in datastore.");
-                                    }
-                                }
-                                // update the enclosed object
-                                attribute.set(kintoObject, embeddedObject);
-                            }
-                            // 1:m embedded attributes
-                            if (attributeType.isAssignableFrom(List.class)) {
-                                attribute.setAccessible(true);
-                                // the list for the objects with all attributes
-                                List<KintoObject> embeddedObjects = new ArrayList<>();
-                                ArrayList<?> arrayListObjects = (ArrayList<?>) attribute.get(kintoObject);
-                                for (Object arrayListObject : arrayListObjects) {
-                                    if (KintoObject.class.isAssignableFrom(arrayListObject.getClass())) {
-                                        // get the uuid from embedded object
-                                        attributeType = arrayListObject.getClass();
-                                        KintoObject embeddedObject = (KintoObject) arrayListObject;
-                                        if (!embeddedObject.isPersistent()) {
-                                            String embeddedObjectUUID = embeddedObject.getUUID();
-                                            // call this func recursive
-                                            // fill the "empty" object with values
-                                            embeddedObject = findByUUID((Class<? extends KintoObject>) attributeType, embeddedObjectUUID);
-                                            if (embeddedObject == null) {
-                                                throw new KintoException("An embedded object was not found in datastore.");
-                                            }
+                        kintoObject = collection.findByUUID(uuid); // can be null
+                        if (kintoObject != null) {
+                            Field[] attributes = kintoObject.getClass().getDeclaredFields();
+                            Iterator<Field> fieldIterator = Arrays.stream(attributes).iterator();
+                            while (fieldIterator.hasNext()) {
+                                // 1:1 embedded attribute
+                                Field attribute = fieldIterator.next();
+                                Class<?> attributeType = attribute.getType();
+                                if (DataSet.haveAttributeKintoObjectAsSuperClass(attributeType)) {
+                                    // get the uuid from embedded object
+                                    attribute.setAccessible(true);
+                                    KintoObject embeddedObject = (KintoObject) attribute.get(kintoObject);
+                                    // check if object has values from datastore - have no null values
+                                    if (embeddedObject != null) {
+                                        String embeddedObjectUUID = embeddedObject.getUUID();
+                                        // call this func recursive
+                                        // fill the "empty" object with values
+                                        // check if we can cast the class
+                                        if (!KintoObject.class.isAssignableFrom(attributeType)) {
+                                            throw new KintoException("List element is not from type KintoObject.");
                                         }
-                                        // add the object to the embedded list
-                                        embeddedObjects.add(embeddedObject);
+                                        @SuppressWarnings("unchecked")
+                                        Class<? extends KintoObject> objectType = (Class<? extends KintoObject>) attributeType;
+                                        embeddedObject = findByUUID(objectType, embeddedObjectUUID);
+                                        if (embeddedObject == null) {
+                                            throw new KintoException("An embedded object was not found in datastore.");
+                                        }
                                     }
+                                    // update the enclosed object
+                                    attribute.set(kintoObject, embeddedObject);
                                 }
-                                // update the enclosed object
-                                attribute.set(kintoObject, embeddedObjects);
+                                // 1:m embedded attributes
+                                if (attributeType.isAssignableFrom(List.class)) {
+                                    attribute.setAccessible(true);
+                                    // the list for the objects with all attributes
+                                    List<KintoObject> embeddedObjects = new ArrayList<>();
+                                    ArrayList<?> arrayListObjects = (ArrayList<?>) attribute.get(kintoObject);
+                                    for (Object arrayListObject : arrayListObjects) {
+                                        if (KintoObject.class.isAssignableFrom(arrayListObject.getClass())) {
+                                            // get the uuid from embedded object
+                                            attributeType = arrayListObject.getClass();
+                                            KintoObject embeddedObject = (KintoObject) arrayListObject;
+                                            if (!embeddedObject.isPersistent()) {
+                                                String embeddedObjectUUID = embeddedObject.getUUID();
+                                                // call this func recursive
+                                                // fill the "empty" object with values
+                                                // check if we can cast the class
+                                                if (!KintoObject.class.isAssignableFrom(attributeType)) {
+                                                    throw new KintoException("List element is not from type KintoObject.");
+                                                }
+                                                @SuppressWarnings("unchecked")
+                                                Class<? extends KintoObject> objectType = (Class<? extends KintoObject>) attributeType;
+                                                embeddedObject = findByUUID(objectType, embeddedObjectUUID);
+                                                if (embeddedObject == null) {
+                                                    throw new KintoException("An embedded object was not found in datastore.");
+                                                }
+                                            }
+                                            // add the object to the embedded list
+                                            embeddedObjects.add(embeddedObject);
+                                        }
+                                    }
+                                    // update the enclosed object
+                                    attribute.set(kintoObject, embeddedObjects);
+                                }
                             }
                         }
                     } catch (IllegalAccessException | IllegalArgumentException exception) {
@@ -268,7 +276,7 @@ public final class Kinto {
                         // save the actual collection
                         kintoObjectClassCollection = collection;
                     } catch (KintoException exception) {
-                        exception.printStackTrace();
+                        kintoLogger.log(KintoLogger.ERROR, TAG, "Error while get all objects from collection.", exception);
                     }
                 }
             }
@@ -339,7 +347,13 @@ public final class Kinto {
                                     KintoObject embeddedObject = (KintoObject) arrayListObject;
                                     // get the uuid from embedded object
                                     String embeddedObjectUUID = embeddedObject.getUUID();
-                                    embeddedObject = findByUUID((Class<? extends KintoObject>) embeddedObjectClazz, embeddedObjectUUID);
+                                    // check if we can cast the class
+                                    if (!KintoObject.class.isAssignableFrom(embeddedObjectClazz)) {
+                                        throw new KintoException("List element is not from type KintoObject.");
+                                    }
+                                    @SuppressWarnings("unchecked")
+                                    Class<? extends KintoObject> objectType = (Class<? extends KintoObject>) embeddedObjectClazz;
+                                    embeddedObject = findByUUID(objectType, embeddedObjectUUID);
                                     if (embeddedObject == null) {
                                         String errorMessage = "Cant' find the the embedded object with the UUID '"
                                                 + type
@@ -422,35 +436,6 @@ public final class Kinto {
                     exception.printStackTrace();
                 }
             }
-        }
-    }
-
-    private Kinto(@NotNull KintoConfiguration kintoConfiguration) throws KintoException {
-        appPackageName = kintoConfiguration.getAppPackageName();
-        if (appPackageName.contains(".")) {
-            bucket = appPackageName.substring(appPackageName.lastIndexOf(".") + 1);
-        } else {
-            bucket = appPackageName;
-        }
-        // check managed objects
-        int size = kintoConfiguration.getObjectTypes().size();
-        if (size == 0) {
-            throw new KintoException("There are no managed object types in configuration.");
-        }
-        // activate logging
-        // create the library logger
-        KintoLoggerConfiguration loggerConfiguration = new KintoLoggerConfiguration.Builder(appPackageName)
-                .logggingDestination(KintoLoggerConfiguration.LOGGING_DESTINATION.CONSOLE
-                        + KintoLoggerConfiguration.LOGGING_DESTINATION.FILE)
-                .build();
-        kintoLogger = KintoLogger.getInstance(loggerConfiguration);
-        collections = new ArrayList<>(size);
-        syncEnabled = false;
-        // initialize the local datastore for the collection
-        dataBase = KintoDatabaseAdapter.getInstance(this, appPackageName);
-        // create or check collections (schema)
-        for (Class<? extends KintoObject> aClass : kintoConfiguration.getObjectTypes()) {
-            initializeCollection(aClass);
         }
     }
 

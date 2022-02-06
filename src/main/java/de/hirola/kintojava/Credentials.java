@@ -51,7 +51,7 @@ public final class Credentials {
      * @return The authentication string to use while login.
      */
     public String getBasicAuthString() {
-        return this.user + (":") + this.password;
+        return user + (":") + password;
     }
 
     /**

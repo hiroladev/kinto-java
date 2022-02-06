@@ -1,6 +1,5 @@
 package de.hirola.kintojava;
 
-import de.hirola.kintojava.logger.KintoLogger;
 import de.hirola.kintojava.model.DataSet;
 import de.hirola.kintojava.model.KintoObject;
 import de.hirola.kintojava.model.Persisted;
@@ -49,7 +48,7 @@ public class KintoCollection {
         relationTables = new HashMap<>();
         storableAttributes = buildAttributesMap(type);
         // get logging
-        kintoLogger = kinto.getKintoLogger();
+        kintoLogger = KintoLogger.getInstance(null);
         // check if table for collection exists
         // local and remote
         createLocalDataStoreForCollection();
@@ -174,8 +173,13 @@ public class KintoCollection {
                     }
                     // 1: m relations
                     if (dataSet.isList()) {
-                        // check if relation table exist
-                        Class<? extends KintoObject> listObjectType = dataSet.getListType();
+                        Class<?> listElementClazz = dataSet.getListType();
+                        // check if we can cast the class
+                        if (!KintoObject.class.isAssignableFrom(listElementClazz)) {
+                            throw new KintoException("List element is not from type KintoObject.");
+                        }
+                        @SuppressWarnings("unchecked")
+                        Class<? extends KintoObject> listObjectType = (Class<? extends KintoObject>) listElementClazz;
                         if (type != null){
                             // add for all embedded kinto objects an entry in relation table
                             String relationTable = relationTables.get(dataSet.getAttribute());
@@ -183,8 +187,9 @@ public class KintoCollection {
                                 String logMessage = "The relation table of "
                                         + listObjectType.getSimpleName()
                                         + " was not found in configuration.";
-                                throw  new KintoException(logMessage);
+                                throw new KintoException(logMessage);
                             }
+                            // check if relation table exist
                             Field listAttribute = clazz.getDeclaredField(attributeName);
                             listAttribute.setAccessible(true);
                             Object listAttributeObject = listAttribute.get(kintoObject);
@@ -344,7 +349,13 @@ public class KintoCollection {
                         if (dataSet.isList()) {
                             // remove 1:m relations, the objects are still exists in collections
                             // check if relation table exist
-                            Class<? extends KintoObject> listObjectType = dataSet.getListType();
+                            Class<?> listElementClazz = dataSet.getListType();
+                            // check if we can cast the class
+                            if (!KintoObject.class.isAssignableFrom(listElementClazz)) {
+                                throw new KintoException("List element is not from type KintoObject.");
+                            }
+                            @SuppressWarnings("unchecked")
+                            Class<? extends KintoObject> listObjectType = (Class<? extends KintoObject>) listElementClazz;
                             if (type != null) {
                                 // add for all embedded kinto objects an entry in relation table
                                 String relationTable = relationTables.get(dataSet.getAttribute());
@@ -522,7 +533,13 @@ public class KintoCollection {
                         // 1: m relations
                         if (dataSet.isList()) {
                             // check if relation table exist
-                            Class<? extends KintoObject> listObjectType = dataSet.getListType();
+                            Class<?> listElementClazz = dataSet.getListType();
+                            // check if we can cast the class
+                            if (!KintoObject.class.isAssignableFrom(listElementClazz)) {
+                                throw new KintoException("List element is not from type KintoObject.");
+                            }
+                            @SuppressWarnings("unchecked")
+                            Class<? extends KintoObject> listObjectType = (Class<? extends KintoObject>) listElementClazz;
                             if (type != null){
                                 // add for all embedded kinto objects an entry in relation table
                                 String relationTable = relationTables.get(dataSet.getAttribute());

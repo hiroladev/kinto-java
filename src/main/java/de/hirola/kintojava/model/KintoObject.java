@@ -30,6 +30,9 @@ public abstract class KintoObject implements KintoModel {
     private final boolean isSynced;
     private final long lastModified;
 
+    /**
+     * All objects must derive from this class to handle with local and remote datastore.
+     */
     protected KintoObject() {
         kintoID = null;
         uuid = UUID.randomUUID().toString().replace("-", "").toUpperCase();
@@ -40,40 +43,45 @@ public abstract class KintoObject implements KintoModel {
     }
 
     /**
+     * Get the UUID for the object.
      *
-     * @return the unique uid for the object
+     * @return The unique UUID for the object.
      */
     public @NotNull String getUUID() {
         return uuid;
     }
 
     /**
+     * Get the kinto id for the object. The id is used to sync objects.
      *
-     * @return  the kinto record object id
+     * @return  The kinto record object id.
      */
     public String getKintoID() {
         return this.kintoID;
     }
 
     /**
+     * Get the flag, if an object used in relation to other objects.
      *
-     * @return <b>true</b>, if the object used in other kinto objects
+     * @return A flag to determine if the object used in other kinto objects.
      */
     public boolean isUseInRelation() {
         return isUseInRelation;
     }
 
     /**
+     * Get the flag, if an object saved in local datastore.
      *
-     * @return <b>true</b>, if the object successfully saved in local datastore
+     * @return A flag to determine, if the object successfully saved in local datastore.
      */
     public boolean isPersistent() {
         return isPersistent;
     }
 
     /**
+     * Get the flag, if an object synced to a remote kinto.
      *
-     * @return <b>true</b>, if the object synced in a remote kinto
+     * @return A flag to determine, if the object synced to a remote kinto.
      */
     public boolean isSynced() {
         return isSynced;
