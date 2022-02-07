@@ -19,7 +19,7 @@ The library is available from Maven:
 <dependency>
 <groupId>de.hirola</groupId>
 <artifactId>kintojava</artifactId>
-<version>1.1.1-SNAPSHOT</version>
+<version>1.1.2</version>
 </dependency>
 ```
 
