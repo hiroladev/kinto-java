@@ -5,8 +5,8 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>de.hirola</groupId>
-    <artifactId>kintojava</artifactId>
-    <version>1.1.2</version>
+    <artifactId>kinto-java</artifactId>
+    <version>0.0.1</version>
     <packaging>jar</packaging>
 
     <name>kinto-java library</name>
@@ -118,21 +118,25 @@
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>22.0.0</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.36.0.2</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
             <version>5.8.2</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>android</groupId>
             <artifactId>android</artifactId>
             <version>1.0</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
     <repositories>
