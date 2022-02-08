@@ -1,0 +1,25 @@
+plugins {
+    id 'java'
+}
+
+apply plugin:'java'
+apply plugin: 'java-library-distribution'
+
+group 'de.hirola'
+version '0.0.3'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compileonly 'com.google.android:android:4.1.1.4'
+    compileonly 'org.jetbrains:annotations:22.0.0'
+    compileonly 'org.xerial:sqlite-jdbc:3.36.0.2'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.2'
+    }
+
+test {
+    useJUnitPlatform()
+}

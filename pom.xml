@@ -6,7 +6,7 @@
 
     <groupId>de.hirola</groupId>
     <artifactId>kinto-java</artifactId>
-    <version>0.0.1</version>
+    <version>0.0.3</version>
     <packaging>jar</packaging>
 
     <name>kinto-java library</name>
@@ -21,7 +21,7 @@
 
     <licenses>
         <license>
-            <name>MIT License Version</name>
+            <name>AGPL-3.0 License</name>
             <url>https://github.com/hiroladev/kinto-java/blob/master/LICENSE</url>
         </license>
     </licenses>
@@ -114,17 +114,25 @@
     </build>
 
     <dependencies>
+        <!-- https://mvnrepository.com/artifact/com.google.android/android -->
+        <dependency>
+            <groupId>com.google.android</groupId>
+            <artifactId>android</artifactId>
+            <version>4.1.1.4</version>
+            <scope>provided</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
             <version>22.0.0</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.xerial</groupId>
             <artifactId>sqlite-jdbc</artifactId>
             <version>3.36.0.2</version>
-            <scope>compile</scope>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -132,19 +140,22 @@
             <version>5.8.2</version>
             <scope>test</scope>
         </dependency>
+        <!--Android API 27-->
         <dependency>
-            <groupId>androidx.sqlite</groupId>
-            <artifactId>sqlite</artifactId>
-            <version>2.2.0</version>
-            <type>aar</type>
-            <scope>compile</scope>
+            <groupId>android</groupId>
+            <artifactId>android</artifactId>
+            <version>27</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
+
     <repositories>
+        <!--android.jar-->
         <repository>
-            <id>gmaven</id>
-            <name>Google Maven</name>
-            <url>https://maven.google.com/</url>
+            <id>local-repo</id>
+            <name>Local Repository</name>
+            <url>file:${project.basedir}/repo</url>
         </repository>
     </repositories>
+
 </project>
