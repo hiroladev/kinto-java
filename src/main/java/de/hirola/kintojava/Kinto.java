@@ -316,8 +316,10 @@ public final class Kinto {
                                     String embeddedObjectUUID = embeddedObject.getUUID();
                                     embeddedObject = findByUUID(embeddedObjectClazz, embeddedObjectUUID);
                                     if (embeddedObject == null) {
-                                        String errorMessage = "Cant' find the the embedded object with the UUID '"
+                                        String errorMessage = "Cant' find the the embedded object from type "
                                                 + type
+                                                +" with the UUID '"
+                                                + embeddedObjectUUID
                                                 + "'.";
                                         throw new KintoException(errorMessage);
                                     }

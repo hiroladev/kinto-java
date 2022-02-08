@@ -14,12 +14,12 @@ Usage
 
 You can find a sample in package de.hirola.kintojava.bookstore.StoreTest.
 
-The library is available from Maven:
+The library is also available from Maven:
 ```
 <dependency>
 <groupId>de.hirola</groupId>
 <artifactId>kinto-java</artifactId>
-<version>0.0.1</version>
+<version>0.0.4</version>
 </dependency>
 ```
 

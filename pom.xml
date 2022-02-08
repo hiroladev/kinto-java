@@ -6,7 +6,7 @@
 
     <groupId>de.hirola</groupId>
     <artifactId>kinto-java</artifactId>
-    <version>0.0.3</version>
+    <version>0.0.4</version>
     <packaging>jar</packaging>
 
     <name>kinto-java library</name>
@@ -114,14 +114,6 @@
     </build>
 
     <dependencies>
-        <!-- https://mvnrepository.com/artifact/com.google.android/android -->
-        <dependency>
-            <groupId>com.google.android</groupId>
-            <artifactId>android</artifactId>
-            <version>4.1.1.4</version>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>org.jetbrains</groupId>
             <artifactId>annotations</artifactId>
@@ -140,22 +132,6 @@
             <version>5.8.2</version>
             <scope>test</scope>
         </dependency>
-        <!--Android API 27-->
-        <dependency>
-            <groupId>android</groupId>
-            <artifactId>android</artifactId>
-            <version>27</version>
-            <scope>provided</scope>
-        </dependency>
     </dependencies>
-
-    <repositories>
-        <!--android.jar-->
-        <repository>
-            <id>local-repo</id>
-            <name>Local Repository</name>
-            <url>file:${project.basedir}/repo</url>
-        </repository>
-    </repositories>
 
 </project>

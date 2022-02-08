@@ -1,9 +1,5 @@
 package de.hirola.kintojava;
 
-import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteException;
-import android.database.Cursor;
-
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -20,9 +16,15 @@ import java.sql.*;
  */
 public class KintoDatabaseAdapter {
 
-    private final boolean isRunningOnAndroid; // flag for runtime
-    private Connection jvmDatabase; // JVM database
-    private SQLiteDatabase androidDatabase; // Android database
+    private final String TAG = KintoDatabaseAdapter.class.getSimpleName();
+
+    // driver for jdbc connection
+    private final static String JDBC_DRIVER = "org.sqlite.JDBC";
+    // url for jdbc connection
+    private final static String JDB_URL_PREFIX = "jdbc:sqlite:" ;
+
+    private final Connection database; // we use the H2 as embedded database
+    private final KintoLogger logger = KintoLogger.getInstance("debug-sql"); // log sql for debug
 
     /**
      * Create an adapter to access to the local database on Android and JVM.
@@ -45,16 +47,12 @@ public class KintoDatabaseAdapter {
             String vendor = System.getProperty("java.vm.vendor"); // can be null
             if (vendor != null) {
                 if (vendor.equals("The Android Project")) {
-                    // Android
-                    isRunningOnAndroid = true;
                     // path for local database on Android
-                    databasePath = "/data/data/" + appPackageName + "/" + databaseName + ".sqlite";
+                    databasePath = "/data/data/" + appPackageName + "/" + databaseName + ".db";
                 } else {
-                    // JVM
-                    isRunningOnAndroid = false;
                     //  path for local database on JVM
                     String userHomeDir = System.getProperty("user.home");
-                    databasePath = userHomeDir + File.separator + ".kinto-java" + File.separator + databaseName + ".sqlite";
+                    databasePath = userHomeDir + File.separator + ".kinto-java" + File.separator + databaseName + ".db";
                 }
             } else {
                 throw new KintoException("Could not determine the runtime environment.");
@@ -65,22 +63,13 @@ public class KintoDatabaseAdapter {
         // create or open local sqlite db
         // connect to an SQLite database (bucket) that does not exist, it automatically creates a new database
         try {
-            // on Android use the built-in SQLite database implementation
-            if (isRunningOnAndroid) {
-                androidDatabase = SQLiteDatabase.openOrCreateDatabase(
-                        databasePath, null, null);
-            } else {
-                // on JVM use sqlite jdbc driver
-                Class.forName("org.sqlite.JDBC");
-                String url = "jdbc:sqlite:" + databasePath;
-                jvmDatabase = DriverManager.getConnection(url);
-            }
-        } catch (SQLiteException exception) {
-            // database couldn't open
-            throw new KintoException("The database can't be opened: " + exception.getMessage());
-        } catch (ClassNotFoundException exception) {
-            // sqlite driver not found or database couldn't open
-            throw new KintoException("The JDBC driver for SQLite wasn't found: " + exception.getMessage());
+            // we use a jdbc compliant database on Android and JVM
+            // register the driver
+            Class.forName (JDBC_DRIVER);
+            String url = JDB_URL_PREFIX + databasePath;
+            database = DriverManager.getConnection(url);
+       } catch (ClassNotFoundException exception) {
+            throw new KintoException("The JDBC driver was not found: " + exception.getMessage());
         } catch (SQLException exception) {
             throw new KintoException("Can't access the local datastore: " + exception.getMessage());
         }
@@ -95,44 +84,27 @@ public class KintoDatabaseAdapter {
     public void executeSQL(String sql) throws SQLException {
         //TODO: check for sql inject?
         if (Global.DEBUG_SQL) {
-            System.out.println(sql);
+            logger.log(KintoLogger.DEBUG,TAG, sql, null);
         }
-        if (isRunningOnAndroid) {
-            // Android
-            androidDatabase.execSQL(sql);
-        } else {
-            // JVM
-            jvmDatabase.createStatement().execute(sql);
-        }
+        database.createStatement().execute(sql);
     }
 
     /**
      * A layer to execute a given query und returns the result of the query.
      *
      * @param sql query to be execute
-     * @return The result of the given query.
+     * @return The result of the given query
      * @throws SQLException if an error occurred while accessing database
      * @see KintoQueryResultSet
      */
     public KintoQueryResultSet executeQuery(String sql) throws SQLException {
         //TODO check for inject sql?
         if (Global.DEBUG_SQL) {
-            System.out.println(sql);
+            logger.log(KintoLogger.DEBUG,TAG, sql, null);
         }
-        if (isRunningOnAndroid) {
-            // Android
-            //  SQL string must not be ; terminated
-            if (sql.endsWith(";")) {
-                sql = sql.substring(0,sql.lastIndexOf(";"));
-            }
-            Cursor cursor = androidDatabase.rawQuery(sql, null);
-            return new KintoQueryResultSet(cursor);
-        } else {
-            // JVM
-            Statement statement = jvmDatabase.createStatement();
-            ResultSet resultSet = statement.executeQuery(sql);
-            return new KintoQueryResultSet(resultSet);
-        }
+        Statement statement = database.createStatement();
+        ResultSet resultSet = statement.executeQuery(sql);
+        return new KintoQueryResultSet(resultSet);
     }
 
     /**
@@ -141,13 +113,7 @@ public class KintoDatabaseAdapter {
      * @throws SQLException if an error occurred while accessing database
      */
     public void beginTransaction() throws SQLException {
-        if (isRunningOnAndroid) {
-            // Android
-            androidDatabase.beginTransaction();
-        } else {
-            // JVM
-            jvmDatabase.setAutoCommit(false);
-        }
+        database.setAutoCommit(false);
     }
 
     /**
@@ -158,28 +124,14 @@ public class KintoDatabaseAdapter {
     public void commit() throws SQLException {
         boolean errorOccurred = false;
         Exception commitException = null;
-        if (isRunningOnAndroid) {
-            // Android
-            try {
-                androidDatabase.setTransactionSuccessful();
-            } catch (IllegalStateException exception) {
-                // not in transaction or transaction already succeeded
-                commitException = exception;
-                errorOccurred = true;
-             } finally {
-                androidDatabase.endTransaction();
-            }
-        } else {
-            // JVM
-            try {
-                jvmDatabase.commit();
-            } catch (SQLException exception) {
-                commitException = exception;
-                errorOccurred = true;
-            } finally {
-                // default: transactions not used
-                jvmDatabase.setAutoCommit(true);
-            }
+        try {
+            database.commit();
+        } catch (SQLException exception) {
+            commitException = exception;
+            errorOccurred = true;
+        } finally {
+            // default: transactions not used
+            database.setAutoCommit(true);
         }
         if (errorOccurred) {
             throw new SQLException(commitException);
@@ -192,15 +144,7 @@ public class KintoDatabaseAdapter {
      * @throws SQLException if an error occurred while accessing database
      */
     public void rollback() throws SQLException {
-        if (isRunningOnAndroid) {
-            // Android
-            if (androidDatabase.inTransaction()) {
-                androidDatabase.endTransaction();
-            }
-        } else {
-            // JVM
-            jvmDatabase.rollback();
-        }
+        database.rollback();
     }
 
     /**
@@ -209,16 +153,10 @@ public class KintoDatabaseAdapter {
      * @return A flag to determine if the local database is open.
      */
     public boolean isOpen() {
-        if (isRunningOnAndroid) {
-            // Android
-            return androidDatabase.isOpen();
-        } else {
-            // JVM
-            try {
-                return !jvmDatabase.isClosed();
-            } catch (SQLException exception) {
-                return false;
-            }
+        try {
+            return !database.isClosed();
+        } catch (SQLException exception) {
+            return false;
         }
     }
 
@@ -228,13 +166,7 @@ public class KintoDatabaseAdapter {
      * @throws SQLException if an error occurred while closing database
      */
     public void close() throws SQLException {
-        if (isRunningOnAndroid) {
-            // Android
-            androidDatabase.close();
-        } else {
-            // JVM
-            jvmDatabase.close();
-        }
+        database.close();
     }
 
 }

@@ -12,19 +12,19 @@ import java.util.List;
  */
 public final class Global {
 
-    // enable / disable debug mode
-    public static final boolean DEBUG = true;
-    // enable / disable debug mode for sql
-    public static final boolean DEBUG_SQL = false;
+    public static final boolean DEBUG = true; // enable / disable debug mode
+    public static final boolean DEBUG_SQL = true; // enable / disable debug mode for sql
     // workaround for "rowcount"
     // with sqlite jdbc the cursor can only forward
     public static final String rowcountColumnName = "rowcount";
+
     public static final List<String> illegalAttributeNames;
 
     static {
         illegalAttributeNames = new ArrayList<>();
         illegalAttributeNames.add("UUID");
         illegalAttributeNames.add("ALTER");
-        illegalAttributeNames.add("UUID");
+        illegalAttributeNames.add("DELETE");
+        illegalAttributeNames.add("UPDATE");
     }
 }
