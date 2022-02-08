@@ -1,0 +1,6 @@
+/*
+ * This file is needed to use this repo as source in Gradle build script.
+ */
+
+rootProject.name = 'kinto-java'
+include('kinto-java')
